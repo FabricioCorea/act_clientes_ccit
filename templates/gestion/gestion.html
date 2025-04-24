@@ -1,0 +1,1214 @@
+{% extends 'layout/layout.html' %}
+
+{% block title %}Gestión de clientes | CCIT{% endblock %}
+
+{% block content %}
+<div class="container">
+    <ul class="nav nav-tabs flex-grow-1 me-3" id="clienteTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <a class="nav-link {% if view_type == 'sin_asignar' %}active{% endif %}" id="sin_asignar-tab" href="{% url 'gestion' %}" role="tab" aria-controls="sin_asignar" aria-selected="true">
+                Sin asignar <span class="badge rounded-pill bg-light text-dark ms-1" id="countSinAsignar">{{ count_sin_asignar }}</span>
+            </a>
+        </li>
+        <li class="nav-item" role="presentation">
+            <a class="nav-link {% if view_type == 'actualizados' %}active{% endif %}" id="actualizados-tab" href="{% url 'clientes_actualizados_gestion' %}" role="tab" aria-controls="actualizados" aria-selected="false">
+                Actualizados <span class="badge rounded-pill bg-light text-dark ms-1" id="countActualizados">{{ count_actualizados }}</span>
+            </a>
+        </li>
+        <li class="nav-item" role="presentation">
+            <a class="nav-link {% if view_type == 'seguimiento' %}active{% endif %}" id="seguimiento-tab" href="{% url 'clientes_seguimiento_gestion' %}" role="tab" aria-controls="seguimiento" aria-selected="false">
+                En seguimiento <span class="badge rounded-pill bg-light text-dark ms-1" id="countSeguimiento">{{ count_seguimiento }}</span>
+            </a>
+        </li>
+        <li class="nav-item" role="presentation">
+            <a class="nav-link {% if view_type == 'pendientes' %}active{% endif %}" id="pendientes-tab" href="{% url 'clientes_pendientes_gestion' %}" role="tab" aria-controls="pendientes" aria-selected="false">
+                Pendientes <span class="badge rounded-pill bg-light text-dark ms-1" id="countPendientes">{{ count_pendientes }}</span>
+            </a>
+        </li>
+        <li class="nav-item" role="presentation">
+            <a class="nav-link {% if view_type == 'colectores' %}active{% endif %}" id="colectores-tab" href="{% url 'clientes_para_colectores_gestion' %}" role="tab" aria-controls="colectores" aria-selected="false">
+                Para colectores <span class="badge rounded-pill bg-light text-dark ms-1" id="countColectores">{{ count_colectores }}</span>
+            </a>
+        </li>
+        <li class="nav-item" role="presentation">
+            <a class="nav-link {% if view_type == 'todos' %}active{% endif %}" id="todos-tab" href="{% url 'clientes_todos_gestion' %}" role="tab" aria-controls="todos" aria-selected="false">
+                Todos <span class="badge rounded-pill bg-light text-dark ms-1" id="countTodos">{{ count_todos }}</span>
+            </a>
+        </li>
+    </ul>
+
+    <div class="tab-content mt-4" id="clienteTabsContent">
+        {% if view_type == 'sin_asignar' %}
+        <div class="tab-pane fade show active" id="sin-asignar" role="tabpanel" aria-labelledby="sin-asignar-tab">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h3 class="mb-0">Clientes</h3>
+                <div class="d-flex" style="gap: 10px;">
+                    <form method="get" class="d-flex" style="gap: 10px;">
+                        <input type="text" name="q" class="search-box"
+                               placeholder="Buscar cliente..."
+                               value="{{ search_query|default:'' }}"
+                               autocomplete="off">
+                        <input type="hidden" name="sin_asignar" value="{{ clientes_sin_asignar.number }}">
+                    </form>                    
+                    <button class="btn btn-asignar" data-bs-toggle="modal" data-bs-target="#modalAsignarPorCantidad">
+                        <i class="bi bi-person-lines-fill"></i> Asignar por cantidad
+                    </button>
+                </div>
+                
+            </div>
+            <hr>
+            <div class="table-responsive">
+                <table class="styled-table paginable" id="clienteTable">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Cliente</th>
+                            <th>Nombre</th>
+                            <th>Contacto</th>
+                            <th>Estado</th>
+                            <th>Asignar</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for cliente in clientes_sin_asignar %}
+                        <tr>
+                            <td>{{ forloop.counter }}</td>
+                            <td>{{ cliente.numero_cliente }}</td>
+                            <td>{{ cliente.nombre_cliente }}</td>
+                            <td>{{ cliente.contacto_cliente }}</td>
+                            <td>{{ cliente.estado_actual.nombre }}</td>
+                            <td>
+                                <div class="text-center">
+                                    <button class="btn btn-sm btn-asignar"
+                                            data-bs-toggle="modal"
+                                            data-bs-target="#modalAsignarCliente"
+                                            onclick="abrirModalAsignarCliente('{{ cliente.id }}', '{{ cliente.nombre_cliente }}')"
+                                            title="Asignar cliente">
+                                        <i class="bi bi-person-plus-fill"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                            <tr>
+                                <td colspan="7" class="text-center">No hay clientes sin asignar.</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% if clientes_sin_asignar.has_other_pages %}
+                <div class="pagination mt-3">
+                    {% if clientes_sin_asignar.number > 1 %}
+                        <a href="?sin_asignar=1{% if search_query %}&q={{ search_query }}{% endif %}" class="btn btn-sm btn-reportar">Primera</a>
+                        <a href="?sin_asignar={{ clientes_sin_asignar.previous_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}" class="btn btn-sm btn-reportar">&lt;</a>
+                    {% endif %}
+
+                    <span class="btn btn-sm btn-reportar active">{{ clientes_sin_asignar.number }}</span>
+
+                    {% if clientes_sin_asignar.number < clientes_sin_asignar.paginator.num_pages %}
+                        <a href="?sin_asignar={{ clientes_sin_asignar.next_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}" class="btn btn-sm btn-reportar">&gt;</a>
+                        <a href="?sin_asignar={{ clientes_sin_asignar.paginator.num_pages }}{% if search_query %}&q={{ search_query }}{% endif %}" class="btn btn-sm btn-reportar">Última</a>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% elif view_type == 'actualizados' %}
+        <div class="tab-pane fade show active" id="actualizados" role="tabpanel" aria-labelledby="actualizados-tab">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h3 class="mb-0">Clientes</h3>
+                <div class="d-flex">
+                    <form method="get" class="d-flex" style="gap: 10px;">
+                        <input type="text" name="q" class="search-box"
+                               placeholder="Buscar cliente..."
+                               value="{{ search_query|default:'' }}"
+                               autocomplete="off">
+                        <input type="hidden" name="actualizados" value="{{ clientes_actualizados.number }}">
+                    </form>                    
+                </div>
+            </div>
+            <hr>
+            <div class="table-responsive">
+                <table class="styled-table paginable" id="tablaActualizados">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Cliente</th>
+                            <th>Nombre</th>
+                            <th>Contacto</th>
+                            <th>Estado</th>
+                            <th>Usuario</th>
+                            <th>Fecha</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for cliente in clientes_actualizados %}
+                            {% with cliente.movimientos.all|dictsortreversed:"fecha_hora"|first as movimiento %}
+                                <tr>
+                                    <td>{{ forloop.counter }}</td>
+                                    <td>{{ cliente.numero_cliente }}</td>
+                                    <td>{{ cliente.nombre_cliente }}</td>
+                                    <td>{{ cliente.contacto_cliente }}</td>
+                                    <td>{{ cliente.estado_actual.nombre|default:"-" }}</td>
+                                    <td>
+                                        {% if movimiento %}
+                                            {{ movimiento.actualizado_por.get_full_name }}
+                                        {% else %}
+                                            -
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if movimiento and movimiento.fecha_hora %}
+                                            {{ movimiento.fecha_hora|date:"d/m/Y H:i" }}
+                                        {% else %}
+                                            -
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% endwith %}
+                        {% empty %}
+                            <tr>
+                                <td colspan="7" class="text-center">No hay clientes actualizados.</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% if clientes_actualizados.has_other_pages %}
+                <div class="pagination mt-3">
+                    {% if clientes_actualizados.number > 1 %}
+                        <a href="?actualizados=1{% if search_query %}&q={{ search_query }}{% endif %}" class="btn btn-sm btn-reportar">Primera</a>
+                        <a href="?actualizados={{ clientes_actualizados.previous_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}" class="btn btn-sm btn-reportar">&lt;</a>
+                    {% endif %}
+
+                    <span class="btn btn-sm btn-reportar active">{{ clientes_actualizados.number }}</span>
+
+                    {% if clientes_actualizados.number < clientes_actualizados.paginator.num_pages %}
+                        <a href="?actualizados={{ clientes_actualizados.next_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}" class="btn btn-sm btn-reportar">&gt;</a>
+                        <a href="?actualizados={{ clientes_actualizados.paginator.num_pages }}{% if search_query %}&q={{ search_query }}{% endif %}" class="btn btn-sm btn-reportar">Última</a>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% elif view_type == 'seguimiento' %}
+        <div class="tab-pane fade show active" id="seguimiento" role="tabpanel" aria-labelledby="seguimiento-tab">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h3 class="mb-0">Clientes</h3>
+                <div class="d-flex">
+                    <form method="get" class="d-flex" style="gap: 10px;">
+                        <input type="text" name="q" class="search-box"
+                               placeholder="Buscar cliente..."
+                               value="{{ search_query|default:'' }}"
+                               autocomplete="off">
+                        <input type="hidden" name="colectores" value="{{ clientes_por_localizar.number }}">
+                    </form>                    
+                </div>
+            </div>
+            <hr>
+            <div class="table-responsive">
+                <table class="styled-table paginable" id="tablaSeguimiento">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Cliente</th>
+                            <th>Nombre</th>
+                            <th>Contacto</th>
+                            <th>Estado</th>
+                            <th>Usuario</th>
+                            <th>Fecha</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for cliente in clientes_formulario_enviado %}
+                            <tr>
+                                <td>{{ forloop.counter }}</td>
+                                <td>{{ cliente.numero_cliente }}</td>
+                                <td>{{ cliente.nombre_cliente }}</td>
+                                <td>{{ cliente.contacto_cliente }}</td>
+                                <td>{{ cliente.estado_actual.nombre }}</td>
+                                <td>
+                                    {% if cliente.asignado_usuario %}
+                                        {{ cliente.asignado_usuario.get_full_name }}
+                                    {% else %}
+                                        Sin asignar
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if cliente.ultimo_envio_formulario %}
+                                        {{ cliente.ultimo_envio_formulario|date:"d/m/Y H:i" }}
+                                    {% elif cliente.ultima_fecha_sin_movimiento %}
+                                        {{ cliente.ultima_fecha_sin_movimiento|date:"d/m/Y H:i" }}
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </td>                                
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="7" class="text-center">No hay clientes en seguimiento.</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% if clientes_formulario_enviado.has_other_pages %}
+                <div class="pagination mt-3">
+                    {% if clientes_formulario_enviado.number > 1 %}
+                        <a href="?seguimiento=1{% if search_query %}&q={{ search_query }}{% endif %}" class="btn btn-sm btn-reportar">Primera</a>
+                        <a href="?seguimiento={{ clientes_formulario_enviado.previous_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}" class="btn btn-sm btn-reportar">&lt;</a>
+                    {% endif %}
+
+                    <span class="btn btn-sm btn-reportar active">{{ clientes_formulario_enviado.number }}</span>
+
+                    {% if clientes_formulario_enviado.number < clientes_formulario_enviado.paginator.num_pages %}
+                        <a href="?seguimiento={{ clientes_formulario_enviado.next_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}" class="btn btn-sm btn-reportar">&gt;</a>
+                        <a href="?seguimiento={{ clientes_formulario_enviado.paginator.num_pages }}{% if search_query %}&q={{ search_query }}{% endif %}" class="btn btn-sm btn-reportar">Última</a>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% elif view_type == 'pendientes' %}
+        <div class="tab-pane fade show active" id="pendiente" role="tabpanel" aria-labelledby="pendientes-tab">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h3 class="mb-0">Clientes</h3>
+                <div class="d-flex">
+                    <form method="get" class="d-flex" style="gap: 10px;">
+                        <input type="text" name="q" class="search-box"
+                               placeholder="Buscar cliente..."
+                               value="{{ search_query|default:'' }}"
+                               autocomplete="off">
+                        <input type="hidden" name="pendientes" value="{{ clientes_pendientes.number }}">
+                    </form>                    
+                </div>
+            </div>
+            <hr>
+            <div class="table-responsive">
+                <table class="styled-table paginable" id="tablaPendiente">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Cliente</th>
+                            <th>Nombre</th>
+                            <th>Contacto</th>
+                            <th>Usuario</th>
+                            <th>Estado</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for cliente in clientes_pendientes %}
+                        <tr>
+                            <td>{{ forloop.counter }}</td>
+                            <td>{{ cliente.numero_cliente }}</td>
+                            <td>{{ cliente.nombre_cliente }}</td>
+                            <td>{{ cliente.contacto_cliente }}</td>
+                            <td>
+                                {% if cliente.asignado_usuario %}
+                                    {{ cliente.asignado_usuario.get_full_name }}
+                                {% else %}
+                                    Sin asignar
+                                {% endif %}
+                            </td>
+                            <td>{{ cliente.estado_actual.nombre }}</td>
+                        </tr>
+                        {% empty %}
+                            <tr>
+                                <td colspan="7" class="text-center">No hay clientes pendientes.</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% if clientes_pendientes.has_other_pages %}
+                <div class="pagination mt-3">
+                    {% if clientes_pendientes.number > 1 %}
+                        <a href="?pendientes=1{% if search_query %}&q={{ search_query }}{% endif %}" class="btn btn-sm btn-reportar">Primera</a>
+                        <a href="?pendientes={{ clientes_pendientes.previous_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}" class="btn btn-sm btn-reportar">&lt;</a>
+                    {% endif %}
+
+                    <span class="btn btn-sm btn-reportar active">{{ clientes_pendientes.number }}</span>
+
+                    {% if clientes_pendientes.number < clientes_pendientes.paginator.num_pages %}
+                        <a href="?pendientes={{ clientes_pendientes.next_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}" class="btn btn-sm btn-reportar">&gt;</a>
+                        <a href="?pendientes={{ clientes_pendientes.paginator.num_pages }}{% if search_query %}&q={{ search_query }}{% endif %}" class="btn btn-sm btn-reportar">Última</a>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% elif view_type == 'colectores' %}
+        <div class="tab-pane fade show active" id="no-contesto" role="tabpanel" aria-labelledby="colectores-tab">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h3 class="mb-0">Clientes</h3>
+                <div class="d-flex">
+                    <form method="get" class="d-flex" style="gap: 10px;">
+                        <input type="text" name="q" class="search-box"
+                               placeholder="Buscar cliente..."
+                               value="{{ search_query|default:'' }}"
+                               autocomplete="off">
+                        <input type="hidden" name="seguimiento" value="{{ clientes_formulario_enviado.number }}">
+                    </form>                    
+                </div>
+            </div>
+            <hr>
+            <div class="table-responsive">
+                <table class="styled-table paginable" id="tablaNoContesto">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Cliente</th>
+                            <th>Nombre</th>
+                            <th>Contacto</th>
+                            <th>Estado</th>
+                            <th>Usuario</th>
+                            <th>Fecha</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% with has_results=False %}
+                            {% for cliente in clientes_por_localizar %}
+                                {% with movimientos=cliente.movimientos.all|dictsortreversed:"fecha_hora" %}
+                                    {% for movimiento in movimientos %}
+                                        {% if movimiento.estado.nombre|lower == "por localizar" %}
+                                            {% if forloop.first %}
+                                                {% with has_results=True %}
+                                                {% endwith %}
+                                                <tr>
+                                                    <td>{{ forloop.parentloop.counter }}</td>
+                                                    <td>{{ cliente.numero_cliente }}</td>
+                                                    <td>{{ cliente.nombre_cliente }}</td>
+                                                    <td>{{ cliente.contacto_cliente }}</td>
+                                                    <td>{{ movimiento.estado.nombre }}</td>
+                                                    <td>
+                                                        {{ cliente.asignado_usuario.get_full_name|default:"Sin asignar" }}
+                                                    </td>
+                                                    <td>{{ movimiento.fecha_hora|date:"d/m/Y H:i" }}</td>
+                                                    <td>
+                                                        <div class="text-center">
+                                                            {% if cliente.asignado_usuario and cliente.asignado_usuario.id != 5 %}
+                                                                <button 
+                                                                    class="btn btn-success btn-sm" 
+                                                                    data-bs-toggle="modal" 
+                                                                    data-bs-target="#modalAsignarColector"
+                                                                    onclick="abrirModalAsignarColector('{{ cliente.id }}', '{{ cliente.numero_cliente }}', '{{ cliente.nombre_cliente }}')">
+                                                                    Asignado
+                                                                </button>
+                                                            {% else %}
+                                                                <button 
+                                                                    class="btn btn-asignar btn-sm" 
+                                                                    data-bs-toggle="modal" 
+                                                                    data-bs-target="#modalAsignarColector"
+                                                                    onclick="abrirModalAsignarColector('{{ cliente.id }}', '{{ cliente.numero_cliente }}', '{{ cliente.nombre_cliente }}')">
+                                                                    Asignar
+                                                                </button>
+                                                            {% endif %}
+                                                        </div>
+                                                    </td>                                                                                                                                   
+                                                </tr>
+                                            {% endif %}
+                                        {% endif %}
+                                    {% endfor %}
+                                {% endwith %}
+                            {% endfor %}
+                        {% endwith %}
+                    </tbody>                    
+                </table>
+                {% if clientes_por_localizar.has_other_pages %}
+                <div class="pagination mt-3">
+                    {% if clientes_por_localizar.number > 1 %}
+                        <a href="?colectores=1{% if search_query %}&q={{ search_query }}{% endif %}" class="btn btn-sm btn-reportar">Primera</a>
+                        <a href="?colectores={{ clientes_por_localizar.previous_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}" class="btn btn-sm btn-reportar">&lt;</a>
+                    {% endif %}
+
+                    <span class="btn btn-sm btn-reportar active">{{ clientes_por_localizar.number }}</span>
+
+                    {% if clientes_por_localizar.number < clientes_por_localizar.paginator.num_pages %}
+                        <a href="?colectores={{ clientes_por_localizar.next_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}" class="btn btn-sm btn-reportar">&gt;</a>
+                        <a href="?colectores={{ clientes_por_localizar.paginator.num_pages }}{% if search_query %}&q={{ search_query }}{% endif %}" class="btn btn-sm btn-reportar">Última</a>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+{% comment %} <!-- TAB Completados Global -->
+        <div class="tab-pane fade {% if view_type == 'sin_actualizar_global' %}show active{% endif %}" id="sin_actualizar_global" role="tabpanel">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h3 class="mb-0">Clientes</h3>
+                            <form method="get" class="d-flex" style="gap: 10px;">
+                                <input type="text" name="q" id="searchInputCompletadosGlobal" class="search-box"
+                                    placeholder="Buscar cliente..."
+                                    value="{{ search_query|default:'' }}"
+                                    autocomplete="off">
+                            </form>
+                        </div>
+                        <hr>
+                        <div class="table-responsive">
+                            <table class="styled-table" id="tablaCompletadosGlobal">
+                                <thead>
+                                    <tr>
+                                        <th>#</th>
+                                        <th>Cliente</th>
+                                        <th>Nombre</th>
+                                        <th>Contacto</th>
+                                        <th>Estado</th>
+                                        <th>Fecha</th>
+                                        <th>Usuario</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for cliente in clientes_completados %}
+                                    <tr>
+                                        <td>{{ forloop.counter }}</td>
+                                        <td>{{ cliente.numero_cliente }}</td>
+                                        <td>{{ cliente.nombre_cliente }}</td>
+                                        <td>{{ cliente.contacto_cliente }}</td>
+                                        <td>{{ cliente.estado_actual.nombre|default:"-" }}</td>
+                                        <td>
+                                            {% if cliente.ultima_fecha_movimiento %}
+                                                {{ cliente.ultima_fecha_movimiento|date:"d/m/Y H:i" }}
+                                            {% else %}
+                                                -
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if cliente.usuario_movimiento %}
+                                                {{ cliente.usuario_movimiento }}
+                                            {% else %}
+                                                -
+                                            {% endif %}
+                                        </td>                            
+                                        
+                                    </tr>
+                                    {% empty %}
+                                    <tr>
+                                        <td colspan="7" class="text-center">No hay clientes completados globalmente.</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+            
+                        <!-- Paginación de Django -->
+                        {% if clientes_completados.has_other_pages %}
+                        <div class="pagination mt-3">
+                            {% if clientes_completados.number > 1 %}
+                                <a href="?sin_actualizar_global=1{% if search_query %}&q={{ search_query }}{% endif %}" class="btn btn-sm btn-reportar">Primera</a>
+                                <a href="?sin_actualizar_global={{ clientes_completados.previous_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}" class="btn btn-sm btn-reportar">&lt;</a>
+                            {% endif %}
+            
+                            <span class="btn btn-sm btn-reportar active">{{ clientes_completados.number }}</span>
+            
+                            {% if clientes_completados.number < clientes_completados.paginator.num_pages %}
+                                <a href="?sin_actualizar_global={{ clientes_completados.next_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}" class="btn btn-sm btn-reportar">&gt;</a>
+                                <a href="?sin_actualizar_global={{ clientes_completados.paginator.num_pages }}{% if search_query %}&q={{ search_query }}{% endif %}" class="btn btn-sm btn-reportar">Última</a>
+                            {% endif %}
+                        </div>
+                        {% endif %}
+        </div> {% endcomment %}
+        {% elif view_type == 'todos' %}
+        <div class="tab-pane fade show active" id="todos" role="tabpanel" aria-labelledby="todos-tab">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h3 class="mb-0">Clientes</h3>
+                <div class="d-flex">
+                    <form method="get" class="d-flex" style="gap: 10px;">
+                        <input type="text" name="q" class="search-box"
+                               placeholder="Buscar cliente..."
+                               value="{{ search_query|default:'' }}"
+                               autocomplete="off">
+                        <input type="hidden" name="todos" value="{{ clientes_todos.number }}">
+                    </form>                    
+                </div>
+            </div>
+            <hr>
+            <div class="table-responsive">
+                <table class="styled-table paginable" id="tablaTodos">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Cliente</th>
+                            <th>Nombre</th>
+                            <th>Contacto</th>
+                            <th>Usuario</th>
+                            <th>Estado</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for cliente in clientes_todos %}
+                        <tr>
+                            <td>{{ forloop.counter }}</td>
+                            <td>{{ cliente.numero_cliente }}</td>
+                            <td>{{ cliente.nombre_cliente }}</td>
+                            <td>{{ cliente.contacto_cliente }}</td>
+                            <td>
+                                {% if cliente.asignado_usuario %}
+                                    {{ cliente.asignado_usuario.get_full_name }}
+                                {% else %}
+                                    Sin asignar
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if cliente.estado_actual %}
+                                    {{ cliente.estado_actual.nombre }}
+                                {% else %}
+                                    Sin estado
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% if clientes_todos.has_other_pages %}
+                <div class="pagination mt-3">
+                    {% if clientes_todos.number > 1 %}
+                        <a href="?todos=1{% if search_query %}&q={{ search_query }}{% endif %}" class="btn btn-sm btn-reportar">Primera</a>
+                        <a href="?todos={{ clientes_todos.previous_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}" class="btn btn-sm btn-reportar">&lt;</a>
+                    {% endif %}
+
+                    <span class="btn btn-sm btn-reportar active">{{ clientes_todos.number }}</span>
+
+                    {% if clientes_todos.number < clientes_todos.paginator.num_pages %}
+                        <a href="?todos={{ clientes_todos.next_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}" class="btn btn-sm btn-reportar">&gt;</a>
+                        <a href="?todos={{ clientes_todos.paginator.num_pages }}{% if search_query %}&q={{ search_query }}{% endif %}" class="btn btn-sm btn-reportar">Última</a>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    
+   
+</div>
+
+<!-- MODAL PARA ASIGNAR CLIENTE -->
+<div class="modal fade" id="modalAsignarCliente" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" action="{% url 'asignacion' %}">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title">Asignar cliente</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" name="cliente_id" id="asignarClienteId">
+                    <p><strong>Cliente:</strong> <span id="asignarClienteNombre"></span></p>
+                    <hr>
+                    <label class="form-label">Seleccione el usuario a quien asignar:</label>
+                    {% for usuario in usuarios_no_colectores %}
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="usuario_id" id="user_{{ usuario.id }}" value="{{ usuario.id }}" required>
+                            <label class="form-check-label" for="user_{{ usuario.id }}">
+                                {{ usuario.get_full_name }}
+                            </label>
+                        </div>
+                    {% empty %}
+                        <p class="text-danger">No hay usuarios disponibles para asignar.</p>
+                    {% endfor %}
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-confirm">Asignar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Asignar Cliente a Colector -->
+<div class="modal fade" id="modalAsignarColector" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <form method="POST" action="{% url 'reasignar_cliente_colector' %}">
+          {% csrf_token %}
+          <input type="hidden" name="cliente_id" id="modalColectorClienteId">
+          <div class="modal-header">
+            <h5 class="modal-title">Asignar cliente a colector</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <p class="mb-1"><strong>Cliente:</strong> <span id="modalColectorClienteNumero"></span></p>
+            <p class="mb-3"><strong>Nombre:</strong> <span id="modalColectorClienteNombre"></span></p>
+            <div class="mb-3">
+              <label for="usuario_id" class="form-label">Seleccionar colector:</label>
+              <select name="usuario_id" id="usuario_id" class="form-select" required>
+                <option value="" disabled selected>Seleccionar</option>
+                {% for user in usuarios_colectores %}
+                  <option value="{{ user.id }}">{{ user.get_full_name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+            <button type="submit" class="btn btn-confirm">Asignar</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>  
+
+<!-- Modal Asignar por Cantidad -->
+<div class="modal fade" id="modalAsignarPorCantidad" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" action="{% url 'asignacion_por_cantidad' %}">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title">Asignar clientes por cantidad</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Cantidad de clientes a asignar</label>
+                        <input type="number" name="cantidad" class="form-control" min="1" required>
+                    </div>
+                    <hr>
+                    <label class="form-label">Seleccione el usuario a quien asignar:</label>
+                    {% for usuario in usuarios_no_colectores %}
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="usuario_id" id="usuarioCantidad_{{ usuario.id }}" value="{{ usuario.id }}" required>
+                            <label class="form-check-label" for="usuarioCantidad_{{ usuario.id }}">
+                                {{ usuario.get_full_name }}
+                            </label>
+                        </div>
+                    {% empty %}
+                        <p class="text-danger">No hay usuarios disponibles para asignar.</p>
+                    {% endfor %}
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-confirm">Asignar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+<style>
+    .tabs-container {
+        gap: 10px;
+    }
+    
+    /* Mejoras específicas para móviles */
+    @media (max-width: 768px) {
+        .tabs-container {
+            flex-direction: column;
+            align-items: stretch;
+        }
+    
+        .tabs-container .nav-tabs {
+            width: 100%;
+            overflow-x: auto;
+            flex-wrap: nowrap;
+            padding-bottom: 5px;
+        }
+    
+        .tabs-container .nav-item {
+            flex: 1 0 auto;
+        }
+    
+        .tabs-container .nav-link {
+            font-size: 12px;
+            padding: 8px 10px;
+            white-space: nowrap;
+        }
+    
+        .hoy-counter {
+            align-self: flex-end;
+            margin-top: 5px;
+            text-align: right;
+        }
+    }
+    
+    .nav-tabs .nav-link .badge {
+        background-color: #b0b0b0; /* Gris medio más oscuro */
+        color: #184072;
+        font-weight: bold;
+        font-size: 11px;
+        padding: 4px 7px;
+        margin-left: 5px;
+        border-radius: 12px;
+        transition: background-color 0.2s ease-in-out;
+    }
+    
+    .nav-tabs .nav-link {
+        border: 1px solid #184072 !important;
+        color: white !important;
+        background-color: #184072 !important;
+        font-size: 14px;
+        margin-right: 5px;
+        border-radius: 5px 5px 0 0 !important;
+        transition: all 0.3s ease;
+    }
+    
+    .nav-tabs .nav-link:hover {
+        background-color: #13345e !important;
+        color: white !important;
+    }
+    
+    .nav-tabs .nav-link.active {
+        background-color: white !important;
+        color: #184072 !important;
+        border-bottom-color: white !important;
+        font-weight: bold;
+    }
+    
+    .styled-table {
+        width: 100%;
+        border-collapse: collapse;
+        background: #fff;
+        border-radius: 10px;
+        overflow: hidden;
+        font-size: 14px;
+    }
+
+    .styled-table th, .styled-table td {
+        padding: 12px;
+        text-align: left;
+        border-bottom: 1px solid #ddd;
+    }
+
+    .styled-table th {
+        background: #184072;
+        color: white;
+    }
+
+    .styled-table tr:hover {
+        background-color: #f1f1f1;
+    }
+    /* Estilos para la tabla de usuarios */
+    .container {
+        width: 100%;
+        max-width: 1100px;
+        margin: auto;
+        background: #ffffff;
+        padding: 20px;
+        border-radius: 10px;
+        box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+    }
+
+    h1, h2, h3, h4, h5, h6 {
+        color:#122a4a;
+        font-weight: bold;
+        margin-bottom: 20px;
+    }
+
+    .actions {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 15px;
+    }
+
+    .btn {
+        padding: 10px 15px;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 14px;
+        color: white;
+    }
+
+    .btn-add {
+        background: #184072;
+        color: white;
+    }
+
+    .btn-add:hover {
+        background: #184072;
+        color: white;
+    }
+
+    .search-box {
+        padding: 8px;
+        width: 250px;
+        border: 1px solid #184072;
+        border-radius: 5px;
+    }
+
+    .table-responsive {
+        overflow-x: auto;
+        border-radius: 10px;  
+        border: 1px solid #ddd; 
+    }
+
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        background: #fff;
+        border-radius: 10px;  
+        overflow: hidden;
+        font-size: 14px;
+    }
+
+    th, td {
+        padding: 12px;
+        text-align: left;
+        border-bottom: 1px solid #ddd;
+        
+    }
+
+    th {
+        background: #184072;
+        color: white;
+    }
+
+    tr:hover {
+        background-color: #f1f1f1;
+    }
+
+    /* Estilos para el switch (toggle) */
+    .switch {
+        position: relative;
+        display: inline-block;
+        width: 34px;
+        height: 20px;
+    }
+
+    .switch input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+    }
+
+    .slider {
+        position: absolute;
+        cursor: pointer;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: #ccc;
+        transition: .4s;
+        border-radius: 34px;
+    }
+
+    .slider:before {
+        position: absolute;
+        content: "";
+        height: 14px;
+        width: 14px;
+        left: 3px;
+        bottom: 3px;
+        background-color: white;
+        transition: .4s;
+        border-radius: 50%;
+    }
+
+    input:checked + .slider {
+        background-color: #4CAF50;
+    }
+
+    input:checked + .slider:before {
+        transform: translateX(14px);
+    }
+    .btn-edit {
+        background: transparent;  
+        border: none;              
+        padding: 0;                
+        cursor: pointer;         
+    }
+    
+    .btn-edit i {
+        font-size: 18px;  
+        color: #e67e22;  
+    }
+    .btn-delete {
+        background: transparent;  
+        border: none;              
+        padding: 0;                
+        cursor: pointer;         
+    }
+    
+    .btn-delete i {
+        font-size: 18px;  
+        color:rgba(192, 0, 0, 0.75);  
+    }
+    .form-label{
+        color:#122a4a;
+        font-weight: bold;
+    }
+    .btn-asignar {
+        background-color: #e67e22;
+        color: black;
+        font-weight: bold;
+        font-size: 13px;
+        padding: 5px 10px;
+        border-radius: 4px;
+        transition: all 0.3s ease; 
+    }
+    
+    .btn-asignar:hover {
+        background-color: #cf6d17;
+        color: white;
+        transform: scale(1.05);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); 
+    }
+    .btn-reportar {
+        background-color: #e67e22;
+        color: black;
+        font-weight: bold;
+        font-size: 13px;
+        padding: 5px 10px;
+        border-radius: 4px;
+        transition: all 0.3s ease; 
+    }
+    
+    .btn-reportar:hover {
+        background-color: #cf6d17;
+        color: white;
+        transform: scale(1.05);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); 
+    }
+    .btn-reenviar-formulario {
+        background-color: #e67e22;
+        color: black;
+        font-weight: bold;
+        font-size: 13px;
+        padding: 5px 10px;
+        border-radius: 4px;
+        transition: all 0.3s ease; 
+    }
+    
+    .btn-reenviar-formulario:hover {
+        background-color: #cf6d17;
+        color: white;
+        transform: scale(1.05);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); 
+    }
+    .btn-confirmar-actualizacion {
+        background-color:rgb(51, 177, 1);
+        color: black;
+        font-weight: bold;
+        font-size: 13px;
+        padding: 5px 10px;
+        border-radius: 4px;
+        transition: all 0.3s ease; 
+    }
+    
+    .btn-confirmar-actualizacion:hover {
+        background-color: rgb(51, 177, 1);
+        color: white;
+        transform: scale(1.05);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); 
+    }
+    
+    .btn-confirm {
+        background-color: #184072;
+        color: white;
+        font-weight: bold;
+        border: none;
+        border-radius: 5px;
+        padding: 10px 15px;
+        cursor: pointer;
+    }
+    
+    .btn-confirm:hover {
+        background-color: #0f2c52; /* Tonalidad más oscura al pasar el mouse */
+        color: white;
+    }
+    .pagination {
+        display: flex;
+        justify-content: center;
+        margin-top: 15px;
+        flex-wrap: wrap;
+        gap: 5px;
+        overflow-y: hidden;
+    }
+
+    .pagination button {
+        background-color: #e67e22;
+        color: black;
+        font-weight: bold;
+        font-size: 13px;
+        padding: 5px 10px;
+        border-radius: 4px;
+        border: none;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    
+    .pagination button:hover {
+        background-color: #cf6d17;
+        color: white;
+        /* transform: scale(1.05); */ /* Eliminado */
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+    
+    .pagination button.active {
+        background-color: #cf6d17;
+        color: white;
+        font-weight: bold;
+        /* transform: scale(1.05); */ /* Eliminado */
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        pointer-events: none;
+    }
+    
+    /* Responsividad general para móviles */
+    @media (max-width: 768px) {
+
+        /* Contenedor principal */
+        .container {
+            padding: 15px;
+            width: 100%;
+            max-width: 100%;
+        }
+
+        /* Títulos y márgenes */
+        h1, h2, h3 {
+            font-size: 18px;
+            margin-bottom: 10px;
+        }
+
+        /* Reordenar elementos de cabecera en columnas */
+        .d-flex {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .d-flex .search-box {
+            width: 100%;
+            margin-bottom: 10px;
+        }
+
+        .d-flex .btn {
+            width: 100%;
+        }
+
+        /* Tablas scrollables y con texto sin cortar */
+        .table-responsive {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            border-radius: 8px;
+        }
+
+        .styled-table th,
+        .styled-table td {
+            white-space: nowrap;
+            font-size: 11px;
+            padding: 8px;
+        }
+
+        /* Aumentar espacio para los botones de acciones */
+        .styled-table td .btn {
+            margin-bottom: 4px;
+            width: 100%;
+        }
+
+        /* Tabs en modo scroll horizontal */
+        .nav-tabs {
+            overflow-x: auto;
+            flex-wrap: nowrap;
+        }
+
+        .nav-tabs .nav-item {
+            flex: 1 0 auto;
+        }
+
+        .nav-tabs .nav-link {
+            font-size: 12px;
+            padding: 8px 10px;
+            white-space: nowrap;
+        }
+
+        /* Paginación en columna */
+        .pagination {
+            flex-direction: row !important;
+            flex-wrap: nowrap;
+            justify-content: center;
+            gap: 5px;
+            overflow-x: auto;
+            padding-bottom: 10px;
+        }
+        
+        .pagination button {
+            flex: 0 0 auto;
+            padding: 6px 10px;
+            font-size: 12px;
+            min-width: 35px;
+            border-radius: 4px;
+        }        
+
+        /* Modal scrollable en pantallas pequeñas */
+        .modal-dialog {
+            margin: 10px;
+        }
+
+        .modal-body {
+            overflow-y: auto;
+            max-height: 60vh;
+        }
+
+        .btn-asignar {
+            font-size: 14px;
+        }
+
+        .btn-confirm,
+        .btn-secondary {
+            width: 100%;
+            margin-top: 10px;
+        }
+    }
+
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    window.abrirModalAsignarCliente = function (id, nombre) {
+        document.getElementById("asignarClienteId").value = id;
+        document.getElementById("asignarClienteNombre").innerText = nombre;
+    };
+
+    window.abrirModalAsignarColector = function (id, numero, nombre) {
+        document.getElementById("modalColectorClienteId").value = id;
+        document.getElementById("modalColectorClienteNumero").innerText = numero;
+        document.getElementById("modalColectorClienteNombre").innerText = nombre;
+    };
+    
+
+    document.addEventListener("DOMContentLoaded", function () {
+        document.getElementById("searchInput").addEventListener("keyup", function () {
+            let searchValue = this.value.toLowerCase();
+            let rows = document.querySelectorAll("#clienteTable tbody tr");
+
+            rows.forEach(row => {
+                let userData = row.textContent.toLowerCase();
+                row.style.display = userData.includes(searchValue) ? "" : "none";
+            });
+        });
+    });
+    
+    function setupBusquedaFormulario(inputId) {
+        const input = document.getElementById(inputId);
+
+        if (!input) return;
+
+        // Enviar el formulario automáticamente al presionar Enter
+        input.addEventListener("keyup", function (event) {
+            if (event.key === "Enter") {
+                const form = input.closest("form");
+                if (form) {
+                    form.submit();
+                }
+            }
+        });
+    }
+
+    // Activar búsqueda por view_type
+    {% if view_type == 'pendientes' %}
+        setupBusquedaFormulario("searchInputPendientes");
+    {% elif view_type == 'seguimiento' %}
+        setupBusquedaFormulario("searchInputSeguimiento");
+    {% elif view_type == 'nocontesto' or view_type == 'colectores' %}
+        setupBusquedaFormulario("searchInputNoContesto");
+    {% elif view_type == 'sin_actualizar' %}
+        setupBusquedaFormulario("searchInputCompletados");
+    {% elif view_type == 'actualizados' %}
+        setupBusquedaFormulario("searchInputActualizados");
+    {% elif view_type == 'sin_asignar' %}
+        setupBusquedaFormulario("searchInputSinAsignar");
+    {% elif view_type == 'todos' %}
+        setupBusquedaFormulario("searchInputTodos");
+    {% endif %}
+
+</script>
+{% endblock %}

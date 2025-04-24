@@ -1,0 +1,608 @@
+{% extends 'layout/layout.html' %}
+
+{% block title %}Clientes | CCIT{% endblock %}
+
+{% block content %}
+<div class="container">
+    <ul class="nav nav-tabs" id="clienteTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <a class="nav-link {% if view_type == 'reportados' %}active{% endif %}" id="reportados-tab" href="{% url 'clientes_reportados' %}" role="tab" aria-controls="reportados" aria-selected="true">
+                Contactados <span class="badge rounded-pill bg-light text-dark ms-1" id="countreportados">{{ count_reportados }}</span>
+            </a>
+        </li>
+    </ul>
+    <div class="tab-content mt-4" id="clienteTabsContent">
+        {% if view_type == 'reportados' %}
+        <div class="tab-pane fade show active" id="reportados" role="tabpanel" aria-labelledby="reportados-tab">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h3 class="mb-0">Clientes</h3>
+                <form method="get" class="d-flex" style="gap: 10px;">
+                    <input type="text" name="q" id="searchInputReportados" class="search-box"
+                           placeholder="Buscar cliente..."
+                           value="{{ search_query|default:'' }}"
+                           autocomplete="off">
+                </form>                                              
+            </div>
+            <hr>
+            <div class="table-responsive">
+                <table class="styled-table" id="tablaReportados">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Cliente</th>
+                            <th>Nombre</th>
+                            <th>Contacto</th>
+                            <th>Estado</th>
+                            <th>Fecha</th>
+                            <th>Detalles</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for cliente in clientes %}
+                        <tr>
+                            <td>{{ forloop.counter }}</td>
+                            <td>{{ cliente.numero_cliente }}</td>
+                            <td>{{ cliente.nombre_cliente }}</td>
+                            <td>{{ cliente.contacto_cliente }}</td>
+                            <td>{{ cliente.estado_actual.nombre }}</td>
+                            <td>
+                                {% if cliente.todos_los_movimientos %}
+                                    {{ cliente.todos_los_movimientos.0.obj.fecha_hora|date:"d/m/Y H:i" }}
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
+                            <td class="text-center">
+                                <button class="btn btn-sm btn-reportar" 
+                                        data-bs-toggle="modal" 
+                                        data-bs-target="#modalDetalle{{ cliente.id }}">
+                                    <i class="bi bi-eye-fill"></i>
+                                </button>
+                            </td>                    
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="8" class="text-center">No hay clientes reportados.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        
+            <!-- Paginación de Django para clientes reportados -->
+            {% if clientes.has_other_pages %}
+            <div class="pagination mt-3">
+                {% if clientes.number > 1 %}
+                    <a href="?reportados=1{% if search_query %}&q={{ search_query }}{% endif %}" class="btn btn-sm btn-reportar">Primera</a>
+                    <a href="?reportados={{ clientes.previous_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}" class="btn btn-sm btn-reportar">&lt;</a>
+                {% endif %}
+        
+                <span class="btn btn-sm btn-reportar active">{{ clientes.number }}</span>
+        
+                {% if clientes.number < clientes.paginator.num_pages %}
+                    <a href="?reportados={{ clientes.next_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}" class="btn btn-sm btn-reportar">&gt;</a>
+                    <a href="?reportados={{ clientes.paginator.num_pages }}{% if search_query %}&q={{ search_query }}{% endif %}" class="btn btn-sm btn-reportar">Última</a>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}        
+    </div>
+</div>
+<!-- Modales por cliente -->
+{% for cliente in clientes %}
+<div class="modal fade" id="modalDetalle{{ cliente.id }}" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Tracking  – Cliente: {{ cliente.numero_cliente }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                {% if cliente.todos_los_movimientos %}
+                    <p><strong>Veces contactado:</strong> {{ cliente.todos_los_movimientos|length }}</p>
+                    <table class="table table-bordered">
+                        <thead>
+                            <tr>
+                                <th>Estado</th>
+                                <th>Fecha y hora</th>
+                                <th>Actualizado por</th>
+                                <th>Nota</th>
+                                <th>Tipo</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for mov in cliente.todos_los_movimientos %}
+                            <tr>
+                                <td>{{ mov.obj.estado.nombre }}</td>
+                                <td>{{ mov.obj.fecha_hora|date:"d/m/Y H:i" }}</td>
+                                <td>
+                                    {% if mov.obj.actualizado_por %}
+                                        {{ mov.obj.actualizado_por.get_full_name }}
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if mov.tipo == "con_movimiento" and mov.obj.notas.all %}
+                                        {% for nota in mov.obj.notas.all %}
+                                            • {{ nota.texto }}<br>
+                                        {% endfor %}
+                                    {% elif mov.tipo == "sin_movimiento" and mov.obj.nota %}
+                                        • {{ mov.obj.nota }}
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if mov.tipo == "con_movimiento" %}
+                                        <span class="badge bg-success">Con movimiento</span>
+                                    {% else %}
+                                        <span class="badge bg-warning text-dark">Sin movimiento</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                {% else %}
+                    <p>No hay movimientos registrados para este cliente.</p>
+                {% endif %}
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endfor %}
+
+  
+<style>
+    .nav-tabs .nav-link .badge {
+        background-color: #b0b0b0; /* Gris medio más oscuro */
+        color: #184072;
+        font-weight: bold;
+        font-size: 11px;
+        padding: 4px 7px;
+        margin-left: 5px;
+        border-radius: 12px;
+        transition: background-color 0.2s ease-in-out;
+    }
+    
+    .nav-tabs .nav-link {
+        border: 1px solid #184072 !important;
+        color: white !important;
+        background-color: #184072 !important;
+        margin-right: 5px;
+        border-radius: 5px 5px 0 0 !important;
+        transition: all 0.3s ease;
+    }
+    
+    .nav-tabs .nav-link:hover {
+        background-color: #13345e !important;
+        color: white !important;
+    }
+    
+    .nav-tabs .nav-link.active {
+        background-color: white !important;
+        color: #184072 !important;
+        border-bottom-color: white !important;
+        font-weight: bold;
+    }
+    
+    .styled-table {
+        width: 100%;
+        border-collapse: collapse;
+        background: #fff;
+        border-radius: 10px;
+        overflow: hidden;
+        font-size: 14px;
+    }
+
+    .styled-table th, .styled-table td {
+        padding: 12px;
+        text-align: left;
+        border-bottom: 1px solid #ddd;
+    }
+
+    .styled-table th {
+        background: #184072;
+        color: white;
+    }
+
+    .styled-table tr:hover {
+        background-color: #f1f1f1;
+    }
+    /* Estilos para la tabla de usuarios */
+    .container {
+        width: 100%;
+        max-width: 1100px;
+        margin: auto;
+        background: #ffffff;
+        padding: 20px;
+        border-radius: 10px;
+        box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+    }
+
+    h1, h2, h3, h4, h5, h6 {
+        color:#122a4a;
+        font-weight: bold;
+        margin-bottom: 20px;
+    }
+
+    .actions {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 15px;
+    }
+
+    .btn {
+        padding: 10px 15px;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 14px;
+        color: white;
+    }
+
+    .btn-add {
+        background: #184072;
+        color: white;
+    }
+
+    .btn-add:hover {
+        background: #184072;
+        color: white;
+    }
+
+    .search-box {
+        padding: 8px;
+        width: 250px;
+        border: 1px solid #184072;
+        border-radius: 5px;
+    }
+
+    .table-responsive {
+        overflow-x: auto;
+        border-radius: 10px;  
+        border: 1px solid #ddd; 
+    }
+
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        background: #fff;
+        border-radius: 10px;  
+        overflow: hidden;
+        font-size: 14px;
+    }
+
+    th, td {
+        padding: 12px;
+        text-align: left;
+        border-bottom: 1px solid #ddd;
+        
+    }
+
+    th {
+        background: #184072;
+        color: white;
+    }
+
+    tr:hover {
+        background-color: #f1f1f1;
+    }
+
+    /* Estilos para el switch (toggle) */
+    .switch {
+        position: relative;
+        display: inline-block;
+        width: 34px;
+        height: 20px;
+    }
+
+    .switch input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+    }
+
+    .slider {
+        position: absolute;
+        cursor: pointer;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: #ccc;
+        transition: .4s;
+        border-radius: 34px;
+    }
+
+    .slider:before {
+        position: absolute;
+        content: "";
+        height: 14px;
+        width: 14px;
+        left: 3px;
+        bottom: 3px;
+        background-color: white;
+        transition: .4s;
+        border-radius: 50%;
+    }
+
+    input:checked + .slider {
+        background-color: #4CAF50;
+    }
+
+    input:checked + .slider:before {
+        transform: translateX(14px);
+    }
+    .btn-edit {
+        background: transparent;  
+        border: none;              
+        padding: 0;                
+        cursor: pointer;         
+    }
+    
+    .btn-edit i {
+        font-size: 18px;  
+        color: #e67e22;  
+    }
+    .btn-delete {
+        background: transparent;  
+        border: none;              
+        padding: 0;                
+        cursor: pointer;         
+    }
+    
+    .btn-delete i {
+        font-size: 18px;  
+        color:rgba(192, 0, 0, 0.75);  
+    }
+    .form-label{
+        color:#122a4a;
+        font-weight: bold;
+    }
+    .btn-asignar {
+        background-color: #e67e22;
+        color: black;
+        font-weight: bold;
+        font-size: 13px;
+        padding: 5px 10px;
+        border-radius: 4px;
+        transition: all 0.3s ease; 
+    }
+    
+    .btn-asignar:hover {
+        background-color: #cf6d17;
+        color: white;
+        transform: scale(1.05);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); 
+    }
+    .btn-reportar {
+        background-color: #e67e22;
+        color: black;
+        font-weight: bold;
+        font-size: 13px;
+        padding: 5px 10px;
+        border-radius: 4px;
+        transition: all 0.3s ease; 
+    }
+    
+    .btn-reportar:hover {
+        background-color: #cf6d17;
+        color: white;
+        transform: scale(1.05);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); 
+    }
+    .btn-confirmar-actualizacion {
+        background-color:rgb(51, 177, 1);
+        color: black;
+        font-weight: bold;
+        font-size: 13px;
+        padding: 5px 10px;
+        border-radius: 4px;
+        transition: all 0.3s ease; 
+    }
+    
+    .btn-confirmar-actualizacion:hover {
+        background-color: rgb(51, 177, 1);
+        color: white;
+        transform: scale(1.05);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); 
+    }
+    
+    .btn-confirm {
+        background-color: #184072;
+        color: white;
+        font-weight: bold;
+        border: none;
+        border-radius: 5px;
+        padding: 10px 15px;
+        cursor: pointer;
+    }
+    
+    .btn-confirm:hover {
+        background-color: #0f2c52; /* Tonalidad más oscura al pasar el mouse */
+        color: white;
+    }
+    .pagination {
+        display: flex;
+        justify-content: center;
+        margin-top: 15px;
+        flex-wrap: wrap;
+        gap: 5px;
+    }
+
+    .pagination button {
+        background-color: #e67e22;
+        color: black;
+        font-weight: bold;
+        font-size: 13px;
+        padding: 5px 10px;
+        border-radius: 4px;
+        border: none;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    
+    .pagination button:hover {
+        background-color: #cf6d17;
+        color: white;
+        /* transform: scale(1.05); */ /* Eliminado */
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+    
+    .pagination button.active {
+        background-color: #cf6d17;
+        color: white;
+        font-weight: bold;
+        /* transform: scale(1.05); */ /* Eliminado */
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        pointer-events: none;
+    }
+    
+    /* Responsividad general para móviles */
+    @media (max-width: 768px) {
+
+        /* Contenedor principal */
+        .container {
+            padding: 15px;
+            width: 100%;
+            max-width: 100%;
+        }
+
+        /* Títulos y márgenes */
+        h1, h2, h3 {
+            font-size: 18px;
+            margin-bottom: 10px;
+        }
+
+        /* Reordenar elementos de cabecera en columnas */
+        .d-flex {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .d-flex .search-box {
+            width: 100%;
+            margin-bottom: 10px;
+        }
+
+        .d-flex .btn {
+            width: 100%;
+        }
+
+        /* Tablas scrollables y con texto sin cortar */
+        .table-responsive {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            border-radius: 8px;
+        }
+
+        .styled-table th,
+        .styled-table td {
+            white-space: nowrap;
+            font-size: 11px;
+            padding: 8px;
+        }
+
+        /* Aumentar espacio para los botones de acciones */
+        .styled-table td .btn {
+            margin-bottom: 4px;
+            width: 100%;
+        }
+
+        /* Tabs en modo scroll horizontal */
+        .nav-tabs {
+            overflow-x: auto;
+            flex-wrap: nowrap;
+        }
+
+        .nav-tabs .nav-item {
+            flex: 1 0 auto;
+        }
+
+        .nav-tabs .nav-link {
+            font-size: 12px;
+            padding: 8px 10px;
+            white-space: nowrap;
+        }
+
+        /* Paginación en columna */
+        .pagination {
+            flex-direction: row !important;
+            flex-wrap: nowrap;
+            justify-content: center;
+            gap: 5px;
+            overflow-x: auto;
+            padding-bottom: 10px;
+        }
+        
+        .pagination button {
+            flex: 0 0 auto;
+            padding: 6px 10px;
+            font-size: 12px;
+            min-width: 35px;
+            border-radius: 4px;
+        }        
+
+        /* Modal scrollable en pantallas pequeñas */
+        .modal-dialog {
+            margin: 10px;
+        }
+
+        .modal-body {
+            overflow-y: auto;
+            max-height: 60vh;
+        }
+
+        .btn-asignar {
+            font-size: 14px;
+        }
+
+        .btn-confirm,
+        .btn-secondary {
+            width: 100%;
+            margin-top: 10px;
+        }
+    }
+
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function setupBusqueda(inputId, tablaId) {
+        const input = document.getElementById(inputId);
+        const tabla = document.getElementById(tablaId);
+        const rows = tabla?.querySelectorAll("tbody tr");
+    
+        if (!input || !tabla || !rows) return;
+    
+        function filtrar() {
+            const search = input.value.toLowerCase();
+            rows.forEach(row => {
+                const texto = row.textContent.toLowerCase();
+                const visible = texto.includes(search);
+                row.style.display = visible ? "" : "none";
+            });
+        }
+    
+        // Solo busca si se presiona Enter
+        input.addEventListener("keyup", function (event) {
+            if (event.key === "Enter") {
+                filtrar();
+            }
+        });
+    }
+    
+    
+    // Activar búsqueda según el view_type del tab actual
+    {% if view_type == 'reportados' %}
+        setupBusqueda("searchInputReportados", "tablaReportados");
+    {% endif %}
+</script>
+{% endblock %}

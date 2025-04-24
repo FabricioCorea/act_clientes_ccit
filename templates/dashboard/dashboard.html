@@ -1,0 +1,462 @@
+{% extends 'layout/layout.html' %}
+
+{% block title %}Dashboard | CCIT{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h3 class="mb-4">Resumen de clientes</h3>
+    <hr>
+
+    <ul class="nav nav-tabs mb-4" id="dashboardTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="estandar-tab" data-bs-toggle="tab" data-bs-target="#estandar-tab-pane" type="button" role="tab" aria-controls="estandar-tab-pane" aria-selected="true">Call center</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="colectores-tab" data-bs-toggle="tab" data-bs-target="#colectores-tab-pane" type="button" role="tab" aria-controls="colectores-tab-pane" aria-selected="false">Colectores</button>
+        </li>
+    </ul>
+
+    <div class="tab-content" id="dashboardTabsContent">
+        <!-- TAB ESTÁNDAR -->
+        <div class="tab-pane fade show active" id="estandar-tab-pane" role="tabpanel" aria-labelledby="estandar-tab">
+            <form method="get" class="row g-3 mb-4">
+                <input type="hidden" name="grupo" value="estandar">
+                <div class="col-md-3">
+                    <label for="fecha_inicio_estandar" class="form-label">Fecha inicio:</label>
+                    <input type="date" name="fecha_inicio" id="fecha_inicio_estandar" class="form-control" value="{{ fecha_inicio|default:'' }}">
+                </div>
+                <div class="col-md-3">
+                    <label for="fecha_fin_estandar" class="form-label">Fecha fin:</label>
+                    <input type="date" name="fecha_fin" id="fecha_fin_estandar" class="form-control" value="{{ fecha_fin|default:'' }}">
+                </div>
+                <div class="col-md-4">
+                    <label for="usuario_estandar" class="form-label">Usuario:</label>
+                    <select name="usuario_id" id="usuario_estandar" class="form-select">
+                        <option value="">-- Todos --</option>
+                        {% for u in usuarios %}
+                            {% if u.groups.first.name == 'estandar_group' %}
+                                <option value="{{ u.id }}" {% if usuario_id == u.id|stringformat:"s" %}selected{% endif %}>{{ u.get_full_name }}</option>
+                            {% endif %}
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2 align-self-end">
+                    <button type="submit" class="btn btn-confirm w-100">Filtrar</button>
+                </div>
+            </form>
+            <div class="mb-4 text-center">
+                <h5 class="mb-2" style="color: #184072; font-weight: bold;">Porcentaje de avance</h5>
+                {% if clientes_totales > 0 %}
+                    <div class="progress-container js-progress-bar"
+                         data-total="{{ clientes_totales }}"
+                         data-avance="{{ avance_total_estandar }}">
+                        <div class="progress-fill"></div>
+                        <div class="progress-label"></div>
+                    </div>
+                {% else %}
+                    <p class="text-muted">No hay clientes disponibles para calcular avance.</p>
+                {% endif %}
+            </div>
+            
+                                    
+            <div class="row g-4">
+                <div class="col-md-3">
+                    <div class="card shadow border-0">
+                        <div class="card-body text-center">
+                            <h5 class="card-title">Contactados</h5>
+                            <p class="card-text fs-4">
+                                <span class="badge-totales">{{ clientes_estandar }} de {{ clientes_totales }}</span>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card shadow border-0">
+                        <div class="card-body text-center">
+                            <h5 class="card-title">Asignados</h5>
+                            <p class="card-text fs-4">
+                                <span class="badge-totales">{{ clientes_asignados_estandar }} de {{ clientes_totales }}</span>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card shadow border-0">
+                        <div class="card-body text-center">
+                            <h5 class="card-title">Actualizados</h5>
+                            <p class="card-text fs-4">
+                                <span class="badge-totales">{{ clientes_actualizados_estandar }} de {{ clientes_totales }}</span>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card shadow border-0">
+                        <div class="card-body text-center">
+                            <h5 class="card-title">Completados</h5>
+                            <p class="card-text fs-4">
+                                <span class="badge-totales">{{ clientes_completados_estandar }} de {{ clientes_totales }}</span>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <h4 class="mt-5 mb-3">Contactados por Estado</h4>
+            <div class="row g-3">
+                {% for estado, cantidad in reportes_estandar_por_estado.items %}
+                <div class="col-md-3">
+                    <div class="card border-info">
+                        <div class="card-body text-center">
+                            <h6 class="card-title">{{ estado }}</h6>
+                            <p class="card-text fs-4">{{ cantidad }}</p>
+                        </div>
+                    </div>
+                </div>
+                {% empty %}
+                <p>No hay clientes para mostrar.</p>
+                {% endfor %}
+            </div>
+
+            <h4 class="mt-5 mb-3">Contactados por Usuario</h4>
+            <div class="row g-3">
+                {% for usuario, cantidad in reportes_estandar_por_usuario.items %}
+                <div class="col-md-3">
+                    <div class="card border-success">
+                        <div class="card-body text-center">
+                            <h6 class="card-title">{{ usuario }}</h6>
+                            <p class="card-text fs-4">{{ cantidad }}</p>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+
+            <h4 class="mt-5 mb-3">Clientes actualizados por Usuario</h4>
+            <div class="row g-3">
+                {% for usuario, cantidad in actualizados_estandar_por_usuario.items %}
+                <div class="col-md-3">
+                    <div class="card border-warning">
+                        <div class="card-body text-center">
+                            <h6 class="card-title">{{ usuario }}</h6>
+                            <p class="card-text fs-4">{{ cantidad }}</p>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- TAB COLECTORES -->
+        <div class="tab-pane fade" id="colectores-tab-pane" role="tabpanel" aria-labelledby="colectores-tab">
+            <form method="get" class="row g-3 mb-4">
+                <input type="hidden" name="grupo" value="colector">
+                <div class="col-md-3">
+                    <label for="fecha_inicio_colector" class="form-label">Fecha inicio:</label>
+                    <input type="date" name="fecha_inicio" id="fecha_inicio_colector" class="form-control" value="{{ fecha_inicio|default:'' }}">
+                </div>
+                <div class="col-md-3">
+                    <label for="fecha_fin_colector" class="form-label">Fecha fin:</label>
+                    <input type="date" name="fecha_fin" id="fecha_fin_colector" class="form-control" value="{{ fecha_fin|default:'' }}">
+                </div>
+                <div class="col-md-4">
+                    <label for="usuario_colector" class="form-label">Usuario:</label>
+                    <select name="usuario_id" id="usuario_colector" class="form-select">
+                        <option value="">-- Todos --</option>
+                        {% for u in usuarios %}
+                            {% if u.groups.first.name == 'colector_group' and u.username != 'colector' %}
+                                <option value="{{ u.id }}" {% if usuario_id == u.id|stringformat:"s" %}selected{% endif %}>{{ u.get_full_name }}</option>
+                            {% endif %}
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2 align-self-end">
+                    <button type="submit" class="btn btn-confirm w-100">Filtrar</button>
+                </div>
+            </form>
+
+            <div class="mb-4 text-center">
+                <h5 class="mb-2" style="color: #184072; font-weight: bold;">Porcentaje de avance</h5>
+                {% if clientes_totales_colector > 0 %}
+                    <div class="progress-container js-progress-bar"
+                         data-total="{{ clientes_totales_colector }}"
+                         data-avance="{{ avance_total_colector }}">
+                        <div class="progress-fill"></div>
+                        <div class="progress-label"></div>
+                    </div>
+                {% else %}
+                    <p class="text-muted">No hay clientes disponibles para calcular avance.</p>
+                {% endif %}
+            </div>
+                       
+            
+            <div class="row g-4">
+                <div class="col-md-3">
+                    <div class="card shadow border-0">
+                        <div class="card-body text-center">
+                            <h5 class="card-title">Contactados</h5>
+                            <p class="card-text fs-4">
+                                <span class="badge-totales">{{ clientes_colector }} de {{ clientes_totales_colector }}</span>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card shadow border-0">
+                        <div class="card-body text-center">
+                            <h5 class="card-title">Asignados</h5>
+                            <p class="card-text fs-4">
+                                <span class="badge-totales">{{ clientes_asignados_colector }} de {{ clientes_totales_colector }}</span>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card shadow border-0">
+                        <div class="card-body text-center">
+                            <h5 class="card-title">Actualizados</h5>
+                            <p class="card-text fs-4">
+                                <span class="badge-totales">{{ clientes_actualizados_colector }} de {{ clientes_totales_colector }}</span>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card shadow border-0">
+                        <div class="card-body text-center">
+                            <h5 class="card-title">Completados</h5>
+                            <p class="card-text fs-4">
+                                <span class="badge-totales">{{ clientes_completados_colector }} de {{ clientes_totales_colector }}</span>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+                                    
+            <h4 class="mt-5 mb-3">Contactados por Estado</h4>
+            <div class="row g-3">
+                {% for estado, cantidad in reportes_colector_por_estado.items %}
+                <div class="col-md-3">
+                    <div class="card border-info">
+                        <div class="card-body text-center">
+                            <h6 class="card-title">{{ estado }}</h6>
+                            <p class="card-text fs-4">{{ cantidad }}</p>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+
+            <h4 class="mt-5 mb-3">Contactados por Usuario</h4>
+            <div class="row g-3">
+                {% for usuario, cantidad in reportes_colector_por_usuario.items %}
+                <div class="col-md-3">
+                    <div class="card border-success">
+                        <div class="card-body text-center">
+                            <h6 class="card-title">{{ usuario }}</h6>
+                            <p class="card-text fs-4">{{ cantidad }}</p>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+
+            <h4 class="mt-5 mb-3">Cliengtes actualizados por Usuario</h4>
+            <div class="row g-3">
+                {% for usuario, cantidad in actualizados_colector_por_usuario.items %}
+                <div class="col-md-3">
+                    <div class="card border-warning">
+                        <div class="card-body text-center">
+                            <h6 class="card-title">{{ usuario }}</h6>
+                            <p class="card-text fs-4">{{ cantidad }}</p>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .nav-tabs .nav-link .badge {
+        background-color: #b0b0b0; /* Gris medio más oscuro */
+        color: #184072;
+        font-weight: bold;
+        font-size: 11px;
+        padding: 4px 7px;
+        margin-left: 5px;
+        border-radius: 12px;
+        transition: background-color 0.2s ease-in-out;
+    }
+    
+    .nav-tabs .nav-link {
+        border: 1px solid #184072 !important;
+        color: white !important;
+        background-color: #184072 !important;
+        margin-right: 5px;
+        border-radius: 5px 5px 0 0 !important;
+        transition: all 0.3s ease;
+    }
+    
+    .nav-tabs .nav-link:hover {
+        background-color: #13345e !important;
+        color: white !important;
+    }
+    
+    .nav-tabs .nav-link.active {
+        background-color: white !important;
+        color: #184072 !important;
+        border-bottom-color: white !important;
+        font-weight: bold;
+    }
+    
+    .container {
+        width: 100%;
+        max-width: 1100px;
+        margin: auto;
+        background: #ffffff;
+        padding: 20px;
+        border-radius: 10px;
+        box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+    }
+    h1, h2, h3, h4, h5, h6 {
+        color: #122a4a;
+        font-weight: bold;
+        margin-bottom: 20px;
+    }
+    .form-label {
+        color: #122a4a;
+        font-weight: bold;
+    }
+    .btn-confirm {
+        background-color: #184072;
+        color: white;
+        font-weight: bold;
+        border: none;
+        border-radius: 5px;
+        padding: 10px 15px;
+        cursor: pointer;
+    }
+    .btn-confirm:hover {
+        background-color: #0f2c52;
+        color: white;
+    }
+    .card-title {
+        color: #184072;
+    }
+    .card-text {
+        color: #e67e22;
+    }
+    .badge-totales {
+        display: inline-block;
+        background-color: #f0f0f0;
+        color: #e67e22;
+        font-weight: bold;
+        padding: 8px 14px;
+        border-radius: 25px;
+        font-size: 18px;
+        min-width: 100px;
+    }
+
+    .progress-container {
+        position: relative;
+        width: 100%;
+        max-width: 380px;
+        height: 24px;
+        margin: 0 auto;
+        background-color: #f0f0f0;
+        border-radius: 20px;
+        overflow: hidden;
+        font-size: 13px;
+    }
+    
+    .progress-fill {
+        background-color: #e67e22;
+        height: 100%;
+        width: 0%;
+        transition: width 0.4s ease-in-out;
+    }
+    
+    .progress-label {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        font-weight: bold;
+        color: black;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        pointer-events: none;
+    }    
+    
+</style>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const params = new URLSearchParams(window.location.search);
+        const grupo = params.get("grupo");
+        if (grupo === "colector") {
+            const tabTrigger = new bootstrap.Tab(document.querySelector('#colectores-tab'));
+            tabTrigger.show();
+        } else {
+            const tabTrigger = new bootstrap.Tab(document.querySelector('#estandar-tab'));
+            tabTrigger.show();
+        }
+    });
+
+        document.addEventListener("DOMContentLoaded", function () {
+            document.querySelectorAll(".js-progress-bar").forEach(function (bar) {
+                const total = parseInt(bar.dataset.total, 10);
+                const avance = parseInt(bar.dataset.avance, 10);
+                const porcentaje = total > 0 ? Math.round((avance / total) * 100) : 0;
+        
+                const fill = bar.querySelector(".progress-fill");
+                const label = bar.querySelector(".progress-label");
+        
+                fill.style.width = `${porcentaje}%`;
+                label.textContent = `${avance} de ${total} (${porcentaje}%)`;
+            });
+        });
+        document.addEventListener("DOMContentLoaded", function () {
+            // Activar el tab correcto desde el parámetro de URL
+            const params = new URLSearchParams(window.location.search);
+            const grupo = params.get("grupo");
+            if (grupo === "colector") {
+                const tabTrigger = new bootstrap.Tab(document.querySelector('#colectores-tab'));
+                tabTrigger.show();
+            } else {
+                const tabTrigger = new bootstrap.Tab(document.querySelector('#estandar-tab'));
+                tabTrigger.show();
+            }
+    
+            // Agregar reload al hacer clic en los tabs
+            document.getElementById("estandar-tab").addEventListener("click", function () {
+                const url = new URL(window.location.href);
+                url.searchParams.set("grupo", "estandar");
+                window.location.href = url.toString();
+            });
+    
+            document.getElementById("colectores-tab").addEventListener("click", function () {
+                const url = new URL(window.location.href);
+                url.searchParams.set("grupo", "colector");
+                window.location.href = url.toString();
+            });
+    
+            // Mostrar progreso
+            document.querySelectorAll(".js-progress-bar").forEach(function (bar) {
+                const total = parseInt(bar.dataset.total, 10);
+                const avance = parseInt(bar.dataset.avance, 10);
+                const porcentaje = total > 0 ? Math.round((avance / total) * 100) : 0;
+    
+                const fill = bar.querySelector(".progress-fill");
+                const label = bar.querySelector(".progress-label");
+    
+                fill.style.width = `${porcentaje}%`;
+                label.textContent = `${avance} de ${total} (${porcentaje}%)`;
+            });
+        });
+</script>
+{% endblock %}

@@ -1,0 +1,1246 @@
+{% extends 'layout/layout.html' %}
+
+{% block title %}Clientes | CCIT{% endblock %}
+
+{% block content %}
+<div class="container">
+    
+    <div class="tabs-container d-flex justify-content-between align-items-center flex-wrap">
+        <ul class="nav nav-tabs flex-grow-1 me-3" id="clienteTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <a class="nav-link {% if view_type == 'pendientes' %}active{% endif %}" id="pendientes-tab" href="{% url 'clientes' %}" role="tab" aria-controls="pendientes" aria-selected="true">
+                    Pendientes <span class="badge rounded-pill bg-light text-dark ms-1" id="countPendientes">{{ count_pendientes }}</span>
+                </a>
+            </li>
+            <li class="nav-item" role="presentation">
+                <a class="nav-link {% if view_type == 'seguimiento' %}active{% endif %}" id="seguimiento-tab" href="{% url 'clientes_seguimiento' %}" role="tab" aria-controls="seguimiento" aria-selected="false">
+                    En seguimiento <span class="badge rounded-pill bg-light text-dark ms-1" id="countSeguimiento">{{ count_seguimiento }}</span>
+                </a>
+            </li>
+            <li class="nav-item" role="presentation">
+                <a class="nav-link {% if view_type == 'nocontesto' %}active{% endif %}" id="nocontesto-tab" href="{% url 'clientes_sin_contestar' %}" role="tab" aria-controls="nocontesto" aria-selected="false">
+                    Sin contestar <span class="badge rounded-pill bg-light text-dark ms-1" id="countNoContesto">{{ count_no_contesto }}</span>
+                </a>
+            </li>
+            <li class="nav-item" role="presentation">
+                <a class="nav-link {% if view_type == 'sin_actualizar' %}active{% endif %}" id="sinactualizar-tab" href="{% url 'clientes_sin_actualizar' %}" role="tab" aria-controls="sinactualizar" aria-selected="false">
+                    Completados <span class="badge rounded-pill bg-light text-dark ms-1" id="countSinActualizar">{{ count_sin_actualizar }}</span>
+                </a>
+            </li>
+            <li class="nav-item" role="presentation">
+                <a class="nav-link {% if view_type == 'actualizados' %}active{% endif %}" id="actualizados-tab" href="{% url 'clientes_actualizados' %}" role="tab" aria-controls="actualizados" aria-selected="false">
+                    Actualizados <span class="badge rounded-pill bg-light text-dark ms-1" id="countActualizados">{{ count_actualizados }}</span>
+                </a>
+            </li>
+        </ul>
+    
+        <!-- Contador a la par -->
+        <div class="hoy-counter text-nowrap mt-2 mt-md-0">
+            <span class="badge bg-success">
+                Hoy: {{ count_actualizados_hoy }}
+            </span>
+        </div>
+    </div>
+    
+    <div class="tab-content mt-4" id="clienteTabsContent">
+        <!-- TAB Pendientes -->
+        {% if view_type == 'pendientes' %}
+        <div class="tab-pane fade show active" id="pendientes" role="tabpanel" aria-labelledby="pendientes-tab">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h3 class="mb-0">Clientes</h3>
+                <form method="get" class="d-flex" style="gap: 10px;">
+                    <input type="text" name="q" id="searchInputPendientes" class="search-box"
+                           placeholder="Buscar cliente..."
+                           value="{{ search_query|default:'' }}"
+                           autocomplete="off">
+                </form>                                              
+            </div>
+            <hr>
+            <div class="table-responsive">
+                <table class="styled-table" id="tablaPendientes">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Cliente</th>
+                            <th>Nombre</th>
+                            <th>Contacto</th>
+                            <th>Estado</th>
+                            <th>Llamar</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for cliente in clientes_pendientes %}
+                        <tr>
+                            <td>{{ forloop.counter }}</td>
+                            <td>{{ cliente.numero_cliente }}</td>
+                            <td>{{ cliente.nombre_cliente }}</td>
+                            <td>{{ cliente.contacto_cliente }}</td>
+                            <td>{{ cliente.estado_actual.nombre }}</td>
+                            <td>
+                                <div class="text-center">
+                                    <button class="btn btn-sm btn-reportar"
+                                            data-bs-toggle="modal" 
+                                            data-bs-target="#modalReportarCliente"
+                                            onclick="abrirModalReportarCliente('{{ cliente.id }}','{{ cliente.numero_cliente }}','{{ cliente.nombre_cliente }}','{{ cliente.contacto_cliente }}','{{ cliente.telefono_cliente|default_if_none:"" }}','{{ cliente.telefono_dos|default_if_none:"" }}','{{ cliente.correo|default_if_none:"" }}','{{ cliente.direccion|default_if_none:"" }}')"
+                                            title="Llamar cliente">
+                                        <i class="bi bi-telephone-fill"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="8" class="text-center">No hay clientes pendientes.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Paginación de Django para clientes pendientes -->
+            {% if clientes_pendientes.has_other_pages %}
+            <div class="pagination mt-3">
+                {% if clientes_pendientes.number > 1 %}
+                    <a href="?pendientes=1{% if search_query %}&q={{ search_query }}{% endif %}" class="btn btn-sm btn-reportar">Primera</a>
+                    <a href="?pendientes={{ clientes_pendientes.previous_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}" class="btn btn-sm btn-reportar">&lt;</a>
+                {% endif %}
+
+                <span class="btn btn-sm btn-reportar active">{{ clientes_pendientes.number }}</span>
+
+                {% if clientes_pendientes.number < clientes_pendientes.paginator.num_pages %}
+                    <a href="?pendientes={{ clientes_pendientes.next_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}" class="btn btn-sm btn-reportar">&gt;</a>
+                    <a href="?pendientes={{ clientes_pendientes.paginator.num_pages }}{% if search_query %}&q={{ search_query }}{% endif %}" class="btn btn-sm btn-reportar">Última</a>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+
+    
+       <!-- TAB Seguimiento -->
+        {% if view_type == 'seguimiento' %}
+        <div class="tab-pane fade show active" id="seguimiento" role="tabpanel" aria-labelledby="seguimiento-tab">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h3 class="mb-0">Clientes</h3>
+                <form method="get" class="d-flex" style="gap: 10px;">
+                    <input type="text" name="q" id="searchInputSeguimiento" class="search-box"
+                           placeholder="Buscar cliente..."
+                           value="{{ search_query|default:'' }}"
+                           autocomplete="off">
+                </form>                
+            </div>
+            <hr>
+            <div class="table-responsive">
+                <table class="styled-table" id="tablaSeguimiento">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Cliente</th>
+                            <th>Nombre</th>
+                            <th>Contacto</th>
+                            <th>Estado</th>
+                            <th>Envíos</th>
+                            <th>Últ. envío</th>
+                            <th>Actualizar/Reenviar</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for cliente in clientes_seguimiento %}
+                        <tr>
+                            <td>{{ forloop.counter }}</td>
+                            <td>{{ cliente.numero_cliente }}</td>
+                            <td>{{ cliente.nombre_cliente }}</td>
+                            <td>{{ cliente.contacto_cliente }}</td>
+                            <td>{{ cliente.estado_actual.nombre }}</td>
+                            <td>
+                                {% if cliente.estado_actual.nombre|lower == "formulario enviado" %}
+                                    {{ cliente.formulario_sin_contestar }} / {{ cliente.estado_actual.intentos }}
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% with ultimo_historial=cliente.historial_sin_movimiento.last %}
+                                    {% if ultimo_historial %}
+                                        {{ ultimo_historial.fecha_hora|date:"d/m/Y H:i" }}
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                {% endwith %}
+                            </td>                            
+                            <td class="text-center">
+                                <!-- Botón Actualizar -->
+                                <form method="POST" action="{% url 'actualizar_estado_cliente' %}" style="display:inline;">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="cliente_id" value="{{ cliente.id }}">
+                                    <button type="submit"
+                                            class="btn btn-sm btn-confirmar-actualizacion"
+                                            data-id="{{ cliente.id }}"
+                                            data-numero="{{ cliente.numero_cliente }}"
+                                            data-nombre="{{ cliente.nombre_cliente }}">
+                                        <i class="bi bi-check-circle-fill"></i>
+                                    </button>
+                                </form>
+                            
+                                <!-- Botón Reportar -->
+                                <button class="btn btn-sm btn-reportar"
+                                        style="margin-left: 5px;"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#modalReportarCliente"
+                                        onclick="abrirModalReportarCliente(
+                                            '{{ cliente.id }}',
+                                            '{{ cliente.numero_cliente }}',
+                                            '{{ cliente.nombre_cliente }}',
+                                            '{{ cliente.contacto_cliente }}',
+                                            '{{ cliente.telefono_cliente|default_if_none:"" }}',
+                                            '{{ cliente.telefono_dos|default_if_none:"" }}',
+                                            '{{ cliente.correo|default_if_none:"" }}',
+                                            '{{ cliente.direccion|default_if_none:"" }}'
+                                        )"
+                                        title="Llamar cliente">
+                                    <i class="bi bi-telephone-fill"></i>
+                                </button>
+                            </td>                            
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="8" class="text-center">No hay clientes en seguimiento.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Paginación de Django para clientes en seguimiento -->
+            {% if clientes_seguimiento.has_other_pages %}
+            <div class="pagination mt-3">
+                {% if clientes_seguimiento.number > 1 %}
+                    <a href="?seguimiento=1{% if search_query %}&q={{ search_query }}{% endif %}" class="btn btn-sm btn-reportar">Primera</a>
+                    <a href="?seguimiento={{ clientes_seguimiento.previous_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}" class="btn btn-sm btn-reportar">&lt;</a>
+                {% endif %}
+
+                <span class="btn btn-sm btn-reportar active">{{ clientes_seguimiento.number }}</span>
+
+                {% if clientes_seguimiento.number < clientes_seguimiento.paginator.num_pages %}
+                    <a href="?seguimiento={{ clientes_seguimiento.next_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}" class="btn btn-sm btn-reportar">&gt;</a>
+                    <a href="?seguimiento={{ clientes_seguimiento.paginator.num_pages }}{% if search_query %}&q={{ search_query }}{% endif %}" class="btn btn-sm btn-reportar">Última</a>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+
+    
+        <!-- TAB Sin Contestar -->
+        <div class="tab-pane fade {% if view_type == 'nocontesto' %}show active{% endif %}" id="nocontesto" role="tabpanel">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h3 class="mb-0">Clientes</h3>
+                <form method="get" class="d-flex" style="gap: 10px;">
+                    <input type="text" name="q" id="searchInputNoContesto" class="search-box"
+                           placeholder="Buscar cliente..."
+                           value="{{ search_query|default:'' }}"
+                           autocomplete="off">
+                </form>
+            </div>
+            <hr>
+            <div class="table-responsive">
+                <table class="styled-table" id="tablaNoContesto">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Cliente</th>
+                            <th>Nombre</th>
+                            <th>Contacto</th>
+                            <th>Llamadas</th>
+                            <th>Últ. llamada</th>
+                            <th>Llamar</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for cliente in clientes_sin_contestar %}
+                        <tr>
+                            <td>{{ forloop.counter }}</td>
+                            <td>{{ cliente.numero_cliente }}</td>
+                            <td>{{ cliente.nombre_cliente }}</td>
+                            <td>{{ cliente.contacto_cliente }}</td>
+                            <td>{{ cliente.sin_contestar }} / {{ cliente.estado_actual.intentos }}</td>
+                            <td>
+                                {% if cliente.ultima_llamada_no_contesto %}
+                                    {{ cliente.ultima_llamada_no_contesto|date:"d/m/Y H:i" }}
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="text-center">
+                                    <button class="btn btn-sm btn-reportar"
+                                            data-bs-toggle="modal"
+                                            data-bs-target="#modalReportarCliente"
+                                            onclick="abrirModalReportarCliente('{{ cliente.id }}', '{{ cliente.numero_cliente }}', '{{ cliente.nombre_cliente }}', '{{ cliente.contacto_cliente }}', '{{ cliente.telefono_cliente|default_if_none:"" }}', '{{ cliente.telefono_dos|default_if_none:"" }}', '{{ cliente.correo|default_if_none:"" }}')"
+                                            title="Llamar cliente">
+                                        <i class="bi bi-telephone-fill"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="7" class="text-center">No hay clientes sin contestar.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Paginación -->
+            {% if clientes_sin_contestar.has_other_pages %}
+            <div class="pagination mt-3">
+                {% if clientes_sin_contestar.number > 1 %}
+                    <a href="?nocontesto=1{% if search_query %}&q={{ search_query }}{% endif %}" class="btn btn-sm btn-reportar">Primera</a>
+                    <a href="?nocontesto={{ clientes_sin_contestar.previous_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}" class="btn btn-sm btn-reportar">&lt;</a>
+                {% endif %}
+
+                <span class="btn btn-sm btn-reportar active">{{ clientes_sin_contestar.number }}</span>
+
+                {% if clientes_sin_contestar.number < clientes_sin_contestar.paginator.num_pages %}
+                    <a href="?nocontesto={{ clientes_sin_contestar.next_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}" class="btn btn-sm btn-reportar">&gt;</a>
+                    <a href="?nocontesto={{ clientes_sin_contestar.paginator.num_pages }}{% if search_query %}&q={{ search_query }}{% endif %}" class="btn btn-sm btn-reportar">Última</a>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+    
+        <!-- TAB Completados -->
+        <div class="tab-pane fade {% if view_type == 'sin_actualizar' %}show active{% endif %}" id="sin_actualizar" role="tabpanel">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h3 class="mb-0">Clientes</h3>
+                <form method="get" class="d-flex" style="gap: 10px;">
+                    <input type="text" name="q" id="searchInputCompletados" class="search-box"
+                           placeholder="Buscar cliente..."
+                           value="{{ search_query|default:'' }}"
+                           autocomplete="off">
+                </form>                
+            </div>
+            <hr>
+            <div class="table-responsive">
+                <table class="styled-table" id="tablaCompletados">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Cliente</th>
+                            <th>Nombre</th>
+                            <th>Contacto</th>
+                            <th>Estado</th>
+                            <th>Fecha</th>
+                            <th>Usuario</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for cliente in clientes_completados %}
+                        <tr>
+                            <td>{{ forloop.counter }}</td>
+                            <td>{{ cliente.numero_cliente }}</td>
+                            <td>{{ cliente.nombre_cliente }}</td>
+                            <td>{{ cliente.contacto_cliente }}</td>
+                            <td>{{ cliente.estado_actual.nombre|default:"-" }}</td>
+            
+                            {% with movimientos=cliente.movimientos.all|dictsortreversed:"fecha_hora" %}
+                                {% with found=0 %}
+                                    {% for movimiento in movimientos %}
+                                        {% if movimiento.estado.nombre == cliente.estado_actual.nombre and found == 0 %}
+                                            <td>{{ movimiento.fecha_hora|date:"d/m/Y H:i" }}</td>
+                                            <td>{{ movimiento.actualizado_por.get_full_name|default:movimiento.actualizado_por.username }}</td>
+                                            {% with found=1 %}{% endwith %}
+                                        {% endif %}
+                                    {% endfor %}
+                                {% endwith %}
+                            {% endwith %}
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="7" class="text-center">No hay clientes completados.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Paginación de Django para clientes completados -->
+            {% if clientes_completados.has_other_pages %}
+            <div class="pagination mt-3">
+                {% if clientes_completados.number > 1 %}
+                    <a href="?sin_actualizar=1{% if search_query %}&q={{ search_query }}{% endif %}" class="btn btn-sm btn-reportar">Primera</a>
+                    <a href="?sin_actualizar={{ clientes_completados.previous_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}" class="btn btn-sm btn-reportar">&lt;</a>
+                {% endif %}
+
+                <span class="btn btn-sm btn-reportar active">{{ clientes_completados.number }}</span>
+
+                {% if clientes_completados.number < clientes_completados.paginator.num_pages %}
+                    <a href="?sin_actualizar={{ clientes_completados.next_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}" class="btn btn-sm btn-reportar">&gt;</a>
+                    <a href="?sin_actualizar={{ clientes_completados.paginator.num_pages }}{% if search_query %}&q={{ search_query }}{% endif %}" class="btn btn-sm btn-reportar">Última</a>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+    
+        <!-- TAB Actualizados -->
+        {% if view_type == 'actualizados' %}
+        <div class="tab-pane fade show active" id="actualizados" role="tabpanel" aria-labelledby="actualizados-tab">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h3 class="mb-0">Clientes</h3>
+                <form method="get" class="d-flex" style="gap: 10px;">
+                    <input type="text" name="q" id="searchInputActualizados" class="search-box"
+                           placeholder="Buscar cliente..."
+                           value="{{ search_query|default:'' }}"
+                           autocomplete="off">
+                </form>                
+            </div>
+            <hr>
+            <div class="table-responsive">
+                <table class="styled-table" id="tablaActualizados">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Cliente</th>
+                            <th>Nombre</th>
+                            <th>Contacto</th>
+                            <th>Estado</th>
+                            <th>Fecha</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for cliente in clientes_actualizados %}
+                        <tr>
+                            <td>{{ forloop.counter }}</td>
+                            <td>{{ cliente.numero_cliente }}</td>
+                            <td>{{ cliente.nombre_cliente }}</td>
+                            <td>{{ cliente.contacto_cliente }}</td>
+                            <td>{{ cliente.estado_actual.nombre|default:"-" }}</td>
+                            <td>
+                                {% if cliente.fecha_actualizado %}
+                                    {{ cliente.fecha_actualizado|date:"d/m/Y H:i" }}
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="6" class="text-center">No hay clientes actualizados.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Paginación de Django para clientes actualizados -->
+            {% if clientes_actualizados.has_other_pages %}
+            <div class="pagination mt-3">
+                {% if clientes_actualizados.number > 1 %}
+                    <a href="?actualizados=1{% if search_query %}&q={{ search_query }}{% endif %}" class="btn btn-sm btn-reportar">Primera</a>
+                    <a href="?actualizados={{ clientes_actualizados.previous_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}" class="btn btn-sm btn-reportar">&lt;</a>
+                {% endif %}
+
+                <span class="btn btn-sm btn-reportar active">{{ clientes_actualizados.number }}</span>
+
+                {% if clientes_actualizados.number < clientes_actualizados.paginator.num_pages %}
+                    <a href="?actualizados={{ clientes_actualizados.next_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}" class="btn btn-sm btn-reportar">&gt;</a>
+                    <a href="?actualizados={{ clientes_actualizados.paginator.num_pages }}{% if search_query %}&q={{ search_query }}{% endif %}" class="btn btn-sm btn-reportar">Última</a>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+         
+<!-- Modal Reportar Cliente -->
+<div class="modal fade" id="modalReportarCliente" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <form method="POST" action="{% url 'reportar_cliente' %}" id="formReportarCliente">
+          {% csrf_token %}
+          <div class="modal-header">
+            <div>
+              <h5 class="modal-title" id="modalNumeroCliente"></h5>
+              <p id="modalNombreCliente" class="form-control-plaintext mb-0 text-muted" style="margin-top: 4px;"></p>
+            </div>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <input type="hidden" name="cliente_id" id="modalClienteId">
+            <!-- Información del cliente que no cambia -->
+            <div class="row mb-2">
+                <div class="col-6">
+                    <label class="form-label">Llamando a:</label>
+                    <p id="modalContactoCliente" class="form-control-plaintext"></p>
+                </div>
+                <div class="col-3">
+                    <label class="form-label">Teléfono:</label>
+                    <p id="modalTelefonoCliente" class="form-control-plaintext"></p>
+                </div>
+                <div class="col-3">
+                    <label class="form-label">Teléfono 2:</label>
+                    <p id="modalTelefonoCliente2" class="form-control-plaintext"></p>
+                </div>
+            </div>
+            
+            <div class="mb-2">
+                <label class="form-label">Correo:</label>
+                <div>
+                    <span id="modalCorreoCliente" class="form-control-plaintext mb-0" style="display: inline;"></span>
+                    <i id="iconoCopiarCorreo"
+                       class="bi bi-clipboard ms-2"
+                       style="cursor: pointer; color: black; font-size: 1.1rem; vertical-align: middle;"
+                       onclick="copiarCorreo()"
+                       title="Copiar correo">
+                    </i>
+                </div>
+            </div>
+                      
+        
+            <hr>
+        
+            <div class="mb-3">
+                <label class="form-label d-block">Estado: <span class="text-danger">*</span></label>
+                <div class="row" id="estadoContainer">
+                    {% for estado in estado_reporte %}
+                    <div class="col-6 mb-2">
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="estado_reporte" id="estado_{{ estado.id }}" value="{{ estado.id }}" required>
+                            <label class="form-check-label" for="estado_{{ estado.id }}">
+                                {{ estado.nombre }}
+                            </label>
+                        </div>
+                    </div>
+                    {% endfor %}
+                    <!-- Opción "Otro" -->
+                    <div class="col-12 mt-2">
+                        <div class="form-check d-flex align-items-center">
+                            <input class="form-check-input me-2" type="radio" name="estado_reporte" id="estado_otro_radio" value="otro">
+                            <label class="form-check-label me-2" for="estado_otro_radio">Otro...</label>
+                            <input type="text" class="form-control me-2" name="estado_otro" id="estado_otro_input" placeholder="Nuevo estado" style="display: none; width: 50%;" autocomplete="off">
+                            <button type="button" class="btn btn-sm btn-success" id="btnAgregarEstado" style="display: none;">+</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+        
+            <div class="mb-3" id="campoNotas">
+                <label class="form-label">Notas:</label>
+                <input type="text" class="form-control" name="notas" placeholder="Escriba una nota...">
+            </div>
+        </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+            <button type="submit" class="btn btn-confirm">Enviar</button>
+          </div>
+        </form>
+      </div>
+    </div>
+</div>
+
+<style>
+    .tabs-container {
+        gap: 10px;
+    }
+    
+    /* Mejoras específicas para móviles */
+    @media (max-width: 768px) {
+        .tabs-container {
+            flex-direction: column;
+            align-items: stretch;
+        }
+    
+        .tabs-container .nav-tabs {
+            width: 100%;
+            overflow-x: auto;
+            flex-wrap: nowrap;
+            padding-bottom: 5px;
+        }
+    
+        .tabs-container .nav-item {
+            flex: 1 0 auto;
+        }
+    
+        .tabs-container .nav-link {
+            font-size: 12px;
+            padding: 8px 10px;
+            white-space: nowrap;
+        }
+    
+        .hoy-counter {
+            align-self: flex-end;
+            margin-top: 5px;
+            text-align: right;
+        }
+    }
+    
+    .nav-tabs .nav-link .badge {
+        background-color: #b0b0b0; /* Gris medio más oscuro */
+        color: #184072;
+        font-weight: bold;
+        font-size: 11px;
+        padding: 4px 7px;
+        margin-left: 5px;
+        border-radius: 12px;
+        transition: background-color 0.2s ease-in-out;
+    }
+    
+    .nav-tabs .nav-link {
+        border: 1px solid #184072 !important;
+        color: white !important;
+        background-color: #184072 !important;
+        margin-right: 5px;
+        border-radius: 5px 5px 0 0 !important;
+        transition: all 0.3s ease;
+    }
+    
+    .nav-tabs .nav-link:hover {
+        background-color: #13345e !important;
+        color: white !important;
+    }
+    
+    .nav-tabs .nav-link.active {
+        background-color: white !important;
+        color: #184072 !important;
+        border-bottom-color: white !important;
+        font-weight: bold;
+    }
+    
+    .styled-table {
+        width: 100%;
+        border-collapse: collapse;
+        background: #fff;
+        border-radius: 10px;
+        overflow: hidden;
+        font-size: 14px;
+    }
+
+    .styled-table th, .styled-table td {
+        padding: 12px;
+        text-align: left;
+        border-bottom: 1px solid #ddd;
+    }
+
+    .styled-table th {
+        background: #184072;
+        color: white;
+    }
+
+    .styled-table tr:hover {
+        background-color: #f1f1f1;
+    }
+    /* Estilos para la tabla de usuarios */
+    .container {
+        width: 100%;
+        max-width: 1100px;
+        margin: auto;
+        background: #ffffff;
+        padding: 20px;
+        border-radius: 10px;
+        box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+    }
+
+    h1, h2, h3, h4, h5, h6 {
+        color:#122a4a;
+        font-weight: bold;
+        margin-bottom: 20px;
+    }
+
+    .actions {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 15px;
+    }
+
+    .btn {
+        padding: 10px 15px;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 14px;
+        color: white;
+    }
+
+    .btn-add {
+        background: #184072;
+        color: white;
+    }
+
+    .btn-add:hover {
+        background: #184072;
+        color: white;
+    }
+
+    .search-box {
+        padding: 8px;
+        width: 250px;
+        border: 1px solid #184072;
+        border-radius: 5px;
+    }
+
+    .table-responsive {
+        overflow-x: auto;
+        border-radius: 10px;  
+        border: 1px solid #ddd; 
+    }
+
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        background: #fff;
+        border-radius: 10px;  
+        overflow: hidden;
+        font-size: 14px;
+    }
+
+    th, td {
+        padding: 12px;
+        text-align: left;
+        border-bottom: 1px solid #ddd;
+        
+    }
+
+    th {
+        background: #184072;
+        color: white;
+    }
+
+    tr:hover {
+        background-color: #f1f1f1;
+    }
+
+    /* Estilos para el switch (toggle) */
+    .switch {
+        position: relative;
+        display: inline-block;
+        width: 34px;
+        height: 20px;
+    }
+
+    .switch input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+    }
+
+    .slider {
+        position: absolute;
+        cursor: pointer;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: #ccc;
+        transition: .4s;
+        border-radius: 34px;
+    }
+
+    .slider:before {
+        position: absolute;
+        content: "";
+        height: 14px;
+        width: 14px;
+        left: 3px;
+        bottom: 3px;
+        background-color: white;
+        transition: .4s;
+        border-radius: 50%;
+    }
+
+    input:checked + .slider {
+        background-color: #4CAF50;
+    }
+
+    input:checked + .slider:before {
+        transform: translateX(14px);
+    }
+    .btn-edit {
+        background: transparent;  
+        border: none;              
+        padding: 0;                
+        cursor: pointer;         
+    }
+    
+    .btn-edit i {
+        font-size: 18px;  
+        color: #e67e22;  
+    }
+    .btn-delete {
+        background: transparent;  
+        border: none;              
+        padding: 0;                
+        cursor: pointer;         
+    }
+    
+    .btn-delete i {
+        font-size: 18px;  
+        color:rgba(192, 0, 0, 0.75);  
+    }
+    .form-label{
+        color:#122a4a;
+        font-weight: bold;
+    }
+    .btn-asignar {
+        background-color: #e67e22;
+        color: black;
+        font-weight: bold;
+        font-size: 13px;
+        padding: 5px 10px;
+        border-radius: 4px;
+        transition: all 0.3s ease; 
+    }
+    
+    .btn-asignar:hover {
+        background-color: #cf6d17;
+        color: white;
+        transform: scale(1.05);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); 
+    }
+    .btn-reportar {
+        background-color: #e67e22;
+        color: black;
+        font-weight: bold;
+        font-size: 13px;
+        padding: 5px 10px;
+        border-radius: 4px;
+        transition: all 0.3s ease; 
+    }
+    
+    .btn-reportar:hover {
+        background-color: #cf6d17;
+        color: white;
+        transform: scale(1.05);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); 
+    }
+    .btn-reenviar-formulario {
+        background-color: #e67e22;
+        color: black;
+        font-weight: bold;
+        font-size: 13px;
+        padding: 5px 10px;
+        border-radius: 4px;
+        transition: all 0.3s ease; 
+    }
+    
+    .btn-reenviar-formulario:hover {
+        background-color: #cf6d17;
+        color: white;
+        transform: scale(1.05);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); 
+    }
+    .btn-confirmar-actualizacion {
+        background-color:rgb(51, 177, 1);
+        color: black;
+        font-weight: bold;
+        font-size: 13px;
+        padding: 5px 10px;
+        border-radius: 4px;
+        transition: all 0.3s ease; 
+    }
+    
+    .btn-confirmar-actualizacion:hover {
+        background-color: rgb(51, 177, 1);
+        color: white;
+        transform: scale(1.05);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); 
+    }
+    
+    .btn-confirm {
+        background-color: #184072;
+        color: white;
+        font-weight: bold;
+        border: none;
+        border-radius: 5px;
+        padding: 10px 15px;
+        cursor: pointer;
+    }
+    
+    .btn-confirm:hover {
+        background-color: #0f2c52; /* Tonalidad más oscura al pasar el mouse */
+        color: white;
+    }
+    .pagination {
+        display: flex;
+        justify-content: center;
+        margin-top: 15px;
+        flex-wrap: wrap;
+        gap: 5px;
+    }
+
+    .pagination button {
+        background-color: #e67e22;
+        color: black;
+        font-weight: bold;
+        font-size: 13px;
+        padding: 5px 10px;
+        border-radius: 4px;
+        border: none;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    
+    .pagination button:hover {
+        background-color: #cf6d17;
+        color: white;
+        /* transform: scale(1.05); */ /* Eliminado */
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+    
+    .pagination button.active {
+        background-color: #cf6d17;
+        color: white;
+        font-weight: bold;
+        /* transform: scale(1.05); */ /* Eliminado */
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        pointer-events: none;
+    }
+    
+    /* Responsividad general para móviles */
+    @media (max-width: 768px) {
+
+        /* Contenedor principal */
+        .container {
+            padding: 15px;
+            width: 100%;
+            max-width: 100%;
+        }
+
+        /* Títulos y márgenes */
+        h1, h2, h3 {
+            font-size: 18px;
+            margin-bottom: 10px;
+        }
+
+        /* Reordenar elementos de cabecera en columnas */
+        .d-flex {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .d-flex .search-box {
+            width: 100%;
+            margin-bottom: 10px;
+        }
+
+        .d-flex .btn {
+            width: 100%;
+        }
+
+        /* Tablas scrollables y con texto sin cortar */
+        .table-responsive {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            border-radius: 8px;
+        }
+
+        .styled-table th,
+        .styled-table td {
+            white-space: nowrap;
+            font-size: 11px;
+            padding: 8px;
+        }
+
+        /* Aumentar espacio para los botones de acciones */
+        .styled-table td .btn {
+            margin-bottom: 4px;
+            width: 100%;
+        }
+
+        /* Tabs en modo scroll horizontal */
+        .nav-tabs {
+            overflow-x: auto;
+            flex-wrap: nowrap;
+        }
+
+        .nav-tabs .nav-item {
+            flex: 1 0 auto;
+        }
+
+        .nav-tabs .nav-link {
+            font-size: 12px;
+            padding: 8px 10px;
+            white-space: nowrap;
+        }
+
+        /* Paginación en columna */
+        .pagination {
+            flex-direction: row !important;
+            flex-wrap: nowrap;
+            justify-content: center;
+            gap: 5px;
+            overflow-x: auto;
+            padding-bottom: 10px;
+        }
+        
+        .pagination button {
+            flex: 0 0 auto;
+            padding: 6px 10px;
+            font-size: 12px;
+            min-width: 35px;
+            border-radius: 4px;
+        }        
+
+        /* Modal scrollable en pantallas pequeñas */
+        .modal-dialog {
+            margin: 10px;
+        }
+
+        .modal-body {
+            overflow-y: auto;
+            max-height: 60vh;
+        }
+
+        .btn-asignar {
+            font-size: 14px;
+        }
+
+        .btn-confirm,
+        .btn-secondary {
+            width: 100%;
+            margin-top: 10px;
+        }
+    }
+
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const clienteIdInput = document.getElementById("modalClienteId");
+        const estadoOtroInput = document.getElementById("estado_otro_input");
+        const estadoOtroRadio = document.getElementById("estado_otro_radio");
+        const btnAgregarEstado = document.getElementById("btnAgregarEstado");
+
+        let datosTemporales = {};
+
+        // Función para abrir el modal
+        window.abrirModalReportarCliente = function (id, numero, nombre, contacto, telefono, telefono2, correo, direccion) {
+            clienteIdInput.value = id;
+
+            // Mostrar la información del cliente en los campos correspondientes
+            modalNumeroCliente.innerText = 'Actualizar cliente: ' + numero;
+            modalNombreCliente.innerText = nombre;
+            modalContactoCliente.innerText = contacto;
+            modalTelefonoCliente.innerText = telefono || "-";
+            document.getElementById("modalTelefonoCliente2").innerText = telefono2 || "-";
+
+            // Aquí está el nuevo bloque modificado
+            const correoSpan = document.getElementById("modalCorreoCliente");
+            const iconoCopiar = document.getElementById("iconoCopiarCorreo");
+            correoSpan.innerText = correo || "-";
+            if (correo && correo.trim() !== "" && correo !== "-") {
+                iconoCopiar.style.display = "inline";
+            } else {
+                iconoCopiar.style.display = "none";
+            }
+
+            document.getElementById("modalDireccionCliente").innerText = direccion || "-";
+
+            const datos = datosTemporales[id] || {};
+            inputNotas.value = datos.notas || "";
+
+            document.querySelectorAll('input[name="estado_reporte"]').forEach(r => {
+                r.checked = (r.value === datos.estado);
+            });
+
+            if (datos.estado === "otro") {
+                estadoOtroInput.style.display = "inline-block";
+                btnAgregarEstado.style.display = "inline-block";
+                estadoOtroInput.required = true;
+                estadoOtroInput.value = datos.estado_otro || "";
+            } else {
+                estadoOtroInput.style.display = "none";
+                btnAgregarEstado.style.display = "none";
+                estadoOtroInput.required = false;
+                estadoOtroInput.value = "";
+            }
+        };
+
+        // Cambiar el comportamiento cuando el estado "Otro" es seleccionado
+        document.querySelectorAll('input[name="estado_reporte"]').forEach(radio => {
+            radio.addEventListener("change", function () {
+                const estadoSeleccionado = this.value;
+                const id = clienteIdInput.value;
+
+                if (estadoSeleccionado === "otro") {
+                    estadoOtroInput.style.display = "inline-block";
+                    btnAgregarEstado.style.display = "inline-block";
+                    estadoOtroInput.required = true;
+                } else {
+                    estadoOtroInput.style.display = "none";
+                    btnAgregarEstado.style.display = "none";
+                    estadoOtroInput.required = false;
+                    estadoOtroInput.value = "";
+                }
+
+                // Almacenar temporalmente los datos del estado seleccionado
+                datosTemporales[id] = datosTemporales[id] || {};
+                datosTemporales[id].estado = estadoSeleccionado;
+            });
+        });
+
+        // Función para agregar el nuevo estado
+        btnAgregarEstado.addEventListener("click", function () {
+            const nuevoEstado = estadoOtroInput.value.trim();
+            if (!nuevoEstado) {
+                Swal.fire({
+                    title: "ADVERTENCIA",
+                    text: "Escriba un nombre para el nuevo estado.",
+                    icon: "warning",
+                    confirmButtonColor: "#FDBD15"
+                });
+                return;
+            }
+
+            fetch("{% url 'crear_estado_reporte' %}", {
+                method: "POST",
+                headers: {
+                    "X-CSRFToken": "{{ csrf_token }}",
+                    "Content-Type": "application/x-www-form-urlencoded"
+                },
+                body: new URLSearchParams({ "estado_otro": nuevoEstado })
+            })
+            .then(response => response.json())
+            .then(data => {
+                Swal.fire({
+                    title: data.tags === "success" ? "LISTO!" : data.tags === "error" ? "ERROR" : "ADVERTENCIA",
+                    text: data.message,
+                    icon: data.tags,
+                    ...(data.tags === "success" ? { showConfirmButton: false, timer: 2500 } : {
+                        confirmButtonColor: data.tags === "warning" ? "#FDBD15" : "#57647D",
+                        focusConfirm: false
+                    })
+                });
+
+                if (data.success) {
+                    const contenedor = document.createElement("div");
+                    contenedor.className = "col-6 mb-2";
+
+                    const divCheck = document.createElement("div");
+                    divCheck.className = "form-check";
+
+                    const input = document.createElement("input");
+                    input.type = "radio";
+                    input.className = "form-check-input";
+                    input.name = "estado_reporte";
+                    input.id = `estado_${data.id}`;
+                    input.value = data.id;
+                    input.checked = true;
+
+                    const label = document.createElement("label");
+                    label.className = "form-check-label";
+                    label.htmlFor = `estado_${data.id}`;
+                    label.textContent = data.nombre;
+
+                    divCheck.appendChild(input);
+                    divCheck.appendChild(label);
+                    contenedor.appendChild(divCheck);
+
+                    document.getElementById("estadoContainer").insertBefore(contenedor, estadoOtroRadio.closest('.col-12'));
+
+                    estadoOtroInput.value = "";
+                    estadoOtroInput.style.display = "none";
+                    estadoOtroInput.required = false;
+                    btnAgregarEstado.style.display = "none";
+                    estadoOtroRadio.checked = false;
+                }
+            })
+            .catch(() => {
+                Swal.fire({
+                    title: "ERROR",
+                    text: "Error al conectar con el servidor.",
+                    icon: "error",
+                    confirmButtonColor: "#57647D",
+                    focusConfirm: false
+                });
+            });
+        });
+
+        document.getElementById("formReportarCliente").addEventListener("submit", function (e) {
+            const estadoSeleccionado = document.querySelector('input[name="estado_reporte"]:checked');
+            const valorEstado = estadoSeleccionado ? estadoSeleccionado.value : null;
+
+            if (valorEstado === "otro") {
+                e.preventDefault();
+                Swal.fire({
+                    title: "ADVERTENCIA",
+                    text: "Debe agregar el nuevo estado con el botón + antes de enviar.",
+                    icon: "warning",
+                    confirmButtonColor: "#FDBD15"
+                });
+            } else {
+                if (this.dataset.enviado === "true") {
+                    e.preventDefault();
+                    return;
+                }
+                this.dataset.enviado = "true";
+            }
+        });
+
+        document.querySelectorAll('[data-bs-dismiss="modal"]').forEach(btn => {
+            btn.addEventListener("click", function () {
+                const id = clienteIdInput.value;
+                if (id) delete datosTemporales[id];
+            });
+        });
+
+        function setupBusqueda(inputId, tablaId) {
+            const input = document.getElementById(inputId);
+            const tabla = document.getElementById(tablaId);
+            const rows = tabla?.querySelectorAll("tbody tr");
+        
+            if (!input || !tabla || !rows) return;
+        
+            function filtrar() {
+                const search = input.value.toLowerCase();
+                rows.forEach(row => {
+                    const texto = row.textContent.toLowerCase();
+                    const visible = texto.includes(search);
+                    row.style.display = visible ? "" : "none";
+                });
+            }
+        
+            // Solo busca si se presiona Enter
+            input.addEventListener("keyup", function (event) {
+                if (event.key === "Enter") {
+                    filtrar();
+                }
+            });
+        }
+        
+        
+        // Activar búsqueda según el view_type del tab actual
+        {% if view_type == 'pendientes' %}
+            setupBusqueda("searchInputPendientes", "tablaPendientes");
+        {% elif view_type == 'seguimiento' %}
+            setupBusqueda("searchInputSeguimiento", "tablaSeguimiento");
+        {% elif view_type == 'nocontesto' %}
+            setupBusqueda("searchInputNoContesto", "tablaNoContesto");
+        {% elif view_type == 'sin_actualizar' %}
+            setupBusqueda("searchInputCompletados", "tablaCompletados");
+        {% elif view_type == 'actualizados' %}
+            setupBusqueda("searchInputActualizados", "tablaActualizados");
+        {% endif %}
+
+        window.copiarCorreo = function () {
+            const correo = document.getElementById("modalCorreoCliente").textContent.trim();
+            const icono = document.getElementById("iconoCopiarCorreo");
+        
+            if (correo && correo !== "-") {
+                navigator.clipboard.writeText(correo).then(() => {
+                    icono.style.color = "#0d6efd";
+                    setTimeout(() => {
+                        icono.style.color = "black";
+                    }, 2000);
+                });
+            }
+        }
+        
+    });
+</script>
+{% endblock %}
+
+

@@ -1,0 +1,725 @@
+{% extends 'layout/layout.html' %}
+
+{% block title %}Lista de Usuarios{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h3 class="mb-0">Gestión de Usuarios</h3>
+        <div class="d-flex">
+            <input type="text" id="searchInput" class="search-box me-2" placeholder="Buscar usuario...">
+            <button class="btn btn-add" data-bs-toggle="modal" data-bs-target="#addUserModal">Agregar Usuario</button>
+        </div>
+    </div>
+    <hr>
+    <div class="table-responsive">
+        <table id="userTable" class="styled-table paginable">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Usuario</th>
+                    <th>Nombre</th>
+                    <th>Apellido</th>
+                    <th>Rol</th>
+                    <th>Estado</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for user in users %}
+                <tr>
+                    <td>{{ forloop.counter }}</td>
+                    <td>{{ user.username }}</td>
+                    <td>{{ user.first_name }}</td>
+                    <td>{{ user.last_name }}</td>
+                    <td>
+                        {% for group in user.groups.all %}
+                            {{ group.name }}{% if not forloop.last %}, {% endif %}
+                        {% empty %}
+                            Sin rol
+                        {% endfor %}
+                    </td>
+                    <td>
+                        <!-- Switch para activar/desactivar usuario -->
+                        <label class="switch">
+                            <input type="checkbox" 
+                                   class="toggle-status"
+                                   data-user-id="{{ user.id }}"
+                                   {% if user.is_active %}checked{% endif %}>
+                            <span class="slider round"></span>
+                        </label>
+                    </td>
+                    <td>
+                        <button class="btn btn-edit" data-bs-toggle="modal" data-bs-target="#editUserModal"
+                            data-user-id="{{ user.id }}" data-username="{{ user.username }}"
+                            data-firstname="{{ user.first_name }}" data-lastname="{{ user.last_name }}"
+                            data-group="{% for group in user.groups.all %}{{ group.name }}{% if not forloop.last %}, {% endif %}{% endfor %}">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="btn btn-delete" data-bs-toggle="modal" data-bs-target="#deleteUserModal"
+                            data-user-id="{{ user.id }}" data-username="{{ user.username }}"
+                            data-firstname="{{ user.first_name }}" data-lastname="{{ user.last_name }}"
+                            data-group="{% for group in user.groups.all %}{{ group.name }}{% if not forloop.last %}, {% endif %}{% endfor %}">
+                            <i class="fas fa-trash-alt"></i>  
+                        </button>                    
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        <div class="pagination" id="paginacionUsuarios"></div>
+    </div>
+</div>
+
+<!-- Modal para agregar usuario -->
+<div class="modal fade" id="addUserModal" tabindex="-1" aria-labelledby="addUserModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" action="{% url 'agregar_usuario' %}">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h4 class="modal-title" id="addUserModalLabel">Agregar Usuario</h4>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="username" class="form-label">Usuario</label>
+                        <input type="text" class="form-control" id="username" name="username" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="first_name" class="form-label">Nombre</label>
+                        <input type="text" class="form-control" id="first_name" name="first_name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="last_name" class="form-label">Apellido</label>
+                        <input type="text" class="form-control" id="last_name" name="last_name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="password" class="form-label">Contraseña</label>
+                        <input type="password" class="form-control" id="password" name="password" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="group" class="form-label">Rol</label>
+                        <select class="form-control" id="group" name="group">
+                            {% for group in groups %}
+                                <option value="{{ group.name }}">{{ group.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-confirm">Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para editar usuario -->
+<div class="modal fade" id="editUserModal" tabindex="-1" aria-labelledby="editUserModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" action="{% url 'editar_usuario' %}">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h4 class="modal-title" id="editUserModalLabel">Editar Usuario</h4>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="text-center mb-3">
+                        <i class="fas fa-user-circle fa-3x" style="color: #184072;"></i>
+                        <h5 id="edit_username" class="mt-2"></h5>
+                    </div>
+                    <input type="hidden" id="edit_user_id" name="user_id">
+                    <div class="mb-3">
+                        <label for="edit_first_name" class="form-label">Nombre</label>
+                        <input type="text" class="form-control" id="edit_first_name" name="first_name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit_last_name" class="form-label">Apellido</label>
+                        <input type="text" class="form-control" id="edit_last_name" name="last_name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit_group" class="form-label">Rol</label>
+                        <select class="form-control" id="edit_group" name="group">
+                            {% for group in groups %}
+                                <option value="{{ group.name }}">{{ group.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-confirm">Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<style>
+    .nav-tabs .nav-link .badge {
+        background-color: #b0b0b0;
+        color: #184072;
+        font-weight: bold;
+        font-size: 11px;
+        padding: 4px 7px;
+        margin-left: 5px;
+        border-radius: 12px;
+        transition: background-color 0.2s ease-in-out;
+    }
+
+    .nav-tabs .nav-link {
+        border: 1px solid #184072 !important;
+        color: white !important;
+        background-color: #184072 !important;
+        margin-right: 5px;
+        border-radius: 5px 5px 0 0 !important;
+        transition: all 0.3s ease;
+    }
+
+    .nav-tabs .nav-link:hover {
+        background-color: #13345e !important;
+        color: white !important;
+    }
+
+    .nav-tabs .nav-link.active {
+        background-color: white !important;
+        color: #184072 !important;
+        border-bottom-color: white !important;
+        font-weight: bold;
+    }
+
+    .styled-table {
+        width: 100%;
+        min-width: 800px; /* ✅ AÑADIDO: para habilitar scroll horizontal */
+        border-collapse: collapse;
+        background: #fff;
+        border-radius: 10px;
+        overflow: hidden;
+        font-size: 14px;
+    }
+
+    .styled-table th, .styled-table td {
+        padding: 12px;
+        text-align: left;
+        border-bottom: 1px solid #ddd;
+    }
+
+    .styled-table th {
+        background: #184072;
+        color: white;
+    }
+
+    .styled-table tr:hover {
+        background-color: #f1f1f1;
+    }
+
+    .container {
+        width: 100%;
+        max-width: 1100px;
+        margin: auto;
+        background: #ffffff;
+        padding: 20px;
+        border-radius: 10px;
+        box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+    }
+
+    h1, h2, h3, h4, h5, h6 {
+        color:#122a4a;
+        font-weight: bold;
+        margin-bottom: 20px;
+    }
+
+    .actions {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 15px;
+    }
+
+    .btn {
+        padding: 10px 15px;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 14px;
+        color: white;
+    }
+
+    .btn-add {
+        background: #184072;
+        color: white;
+    }
+
+    .btn-add:hover {
+        background: #184072;
+        color: white;
+    }
+
+    .search-box {
+        padding: 8px;
+        width: 250px;
+        border: 1px solid #184072;
+        border-radius: 5px;
+    }
+
+    .table-responsive {
+        overflow-x: auto;
+        border-radius: 10px;
+        border: 1px solid #ddd;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        background: #fff;
+        border-radius: 10px;
+        overflow: hidden;
+        font-size: 14px;
+    }
+
+    th, td {
+        padding: 12px;
+        text-align: left;
+        border-bottom: 1px solid #ddd;
+    }
+
+    th {
+        background: #184072;
+        color: white;
+    }
+
+    tr:hover {
+        background-color: #f1f1f1;
+    }
+
+    .switch {
+        position: relative;
+        display: inline-block;
+        width: 34px;
+        height: 20px;
+    }
+
+    .switch input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+    }
+
+    .slider {
+        position: absolute;
+        cursor: pointer;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: #ccc;
+        transition: .4s;
+        border-radius: 34px;
+    }
+
+    .slider:before {
+        position: absolute;
+        content: "";
+        height: 14px;
+        width: 14px;
+        left: 3px;
+        bottom: 3px;
+        background-color: white;
+        transition: .4s;
+        border-radius: 50%;
+    }
+
+    input:checked + .slider {
+        background-color: #4CAF50;
+    }
+
+    input:checked + .slider:before {
+        transform: translateX(14px);
+    }
+
+    .btn-edit {
+        background: transparent;
+        border: none;
+        padding: 0;
+        cursor: pointer;
+    }
+
+    .btn-edit i {
+        font-size: 18px;
+        color: #e67e22;
+    }
+
+    .btn-delete {
+        background: transparent;
+        border: none;
+        padding: 0;
+        cursor: pointer;
+    }
+
+    .btn-delete i {
+        font-size: 18px;
+        color: rgba(192, 0, 0, 0.75);
+    }
+
+    .form-label {
+        color:#122a4a;
+        font-weight: bold;
+    }
+
+    .btn-asignar, .btn-reportar, .btn-confirmar-actualizacion {
+        background-color: #e67e22;
+        color: black;
+        font-weight: bold;
+        font-size: 13px;
+        padding: 5px 10px;
+        border-radius: 4px;
+        transition: all 0.3s ease;
+    }
+
+    .btn-asignar:hover, .btn-reportar:hover {
+        background-color: #cf6d17;
+        color: white;
+        transform: scale(1.05);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .btn-confirmar-actualizacion {
+        background-color: rgb(51, 177, 1);
+    }
+
+    .btn-confirmar-actualizacion:hover {
+        background-color: rgb(51, 177, 1);
+        color: white;
+        transform: scale(1.05);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .btn-confirm {
+        background-color: #184072;
+        color: white;
+        font-weight: bold;
+        border: none;
+        border-radius: 5px;
+        padding: 10px 15px;
+        cursor: pointer;
+    }
+
+    .btn-confirm:hover {
+        background-color: #0f2c52;
+        color: white;
+    }
+
+    .pagination {
+        display: flex;
+        justify-content: center;
+        margin-top: 15px;
+        flex-wrap: wrap;
+        gap: 5px;
+    }
+
+    .pagination button {
+        background-color: #e67e22;
+        color: black;
+        font-weight: bold;
+        font-size: 13px;
+        padding: 5px 10px;
+        border-radius: 4px;
+        border: none;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .pagination button:hover {
+        background-color: #cf6d17;
+        color: white;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .pagination button.active {
+        background-color: #cf6d17;
+        color: white;
+        font-weight: bold;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        pointer-events: none;
+    }
+
+    @media (max-width: 768px) {
+        .container {
+            padding: 15px;
+            width: 100%;
+            max-width: 100%;
+        }
+
+        h1, h2, h3 {
+            font-size: 18px;
+            margin-bottom: 10px;
+        }
+
+        .d-flex {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .d-flex .search-box {
+            width: 100%;
+            margin-bottom: 10px;
+        }
+
+        .d-flex .btn {
+            width: 100%;
+        }
+
+        .table-responsive {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            border-radius: 8px;
+        }
+
+        .styled-table {
+            min-width: 800px; /* ✅ AÑADIDO TAMBIÉN PARA MOVIL */
+        }
+
+        .styled-table th,
+        .styled-table td {
+            white-space: nowrap;
+            font-size: 11px;
+            padding: 8px;
+        }
+
+        .styled-table td .btn {
+            margin-bottom: 4px;
+            width: 100%;
+        }
+
+        .nav-tabs {
+            overflow-x: auto;
+            flex-wrap: nowrap;
+        }
+
+        .nav-tabs .nav-item {
+            flex: 1 0 auto;
+        }
+
+        .nav-tabs .nav-link {
+            font-size: 12px;
+            padding: 8px 10px;
+            white-space: nowrap;
+        }
+
+        .pagination {
+            flex-direction: row !important;
+            flex-wrap: nowrap;
+            justify-content: center;
+            gap: 5px;
+            overflow-x: auto;
+            padding-bottom: 10px;
+        }
+
+        .pagination button {
+            flex: 0 0 auto;
+            padding: 6px 10px;
+            font-size: 12px;
+            min-width: 35px;
+            border-radius: 4px;
+        }
+
+        .modal-dialog {
+            margin: 10px;
+        }
+
+        .modal-body {
+            overflow-y: auto;
+            max-height: 60vh;
+        }
+
+        .btn-asignar {
+            font-size: 14px;
+        }
+
+        .btn-confirm,
+        .btn-secondary {
+            width: 100%;
+            margin-top: 10px;
+        }
+    }
+</style>
+
+{% endblock %}
+
+{% block extra_js %}
+
+
+<script>
+    // Búsqueda de usuarios en la tabla
+    document.getElementById("searchInput").addEventListener("keyup", function() {
+        let searchValue = this.value.toLowerCase();
+        let rows = document.querySelectorAll("#userTable tbody tr");
+
+        rows.forEach(row => {
+            let userData = row.textContent.toLowerCase();
+            row.style.display = userData.includes(searchValue) ? "" : "none";
+        });
+    });
+
+    // Función para editar usuario
+    document.querySelectorAll('.btn-edit').forEach(button => {
+        button.addEventListener('click', function() {
+            let userId = this.getAttribute('data-user-id');
+            let username = this.getAttribute('data-username');
+            let firstName = this.getAttribute('data-firstname');
+            let lastName = this.getAttribute('data-lastname');
+            let group = this.getAttribute('data-group');
+
+            document.getElementById('edit_user_id').value = userId;
+            document.getElementById('edit_username').textContent = username;
+            document.getElementById('edit_first_name').value = firstName;
+            document.getElementById('edit_last_name').value = lastName;
+            document.getElementById('edit_group').value = group;
+        });
+    });
+
+    // Alerta de confirmación para activar/desactivar usuario
+    document.querySelectorAll('.toggle-status').forEach(switchButton => {
+        switchButton.addEventListener('change', function() {
+            let userId = this.getAttribute('data-user-id');
+            let isChecked = this.checked;
+
+            Swal.fire({
+                title: '¿Está seguro?',
+                text: `¿Quiere cambiar el estado del usuario a ${isChecked ? 'Activo' : 'Inactivo'}?`,
+                icon: 'warning',
+                showCancelButton: true,
+                cancelButtonText: 'No, cancelar',
+                confirmButtonText: 'Sí, cambiar',
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    fetch(`/usuarios/cambiar_estado/${userId}/`, {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "X-CSRFToken": "{{ csrf_token }}"
+                        }
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            Swal.fire({
+                                title: "LISTO!",
+                                text: data.message,
+                                icon: "success",
+                                showConfirmButton: false,
+                                timer: 2500
+                            }).then(() => {
+                                location.reload(); 
+                            });
+                        } else {
+                            Swal.fire("Error", data.message, "error");
+                            this.checked = !isChecked;
+                        }
+                    });
+                } else {
+                    this.checked = !isChecked;
+                }
+            });
+        });
+    });
+    
+    // Alerta de confirmación para eliminar usuario
+    document.querySelectorAll('.btn-delete').forEach(deleteButton => {
+        deleteButton.addEventListener('click', function() {
+            let userId = this.getAttribute('data-user-id');
+    
+            Swal.fire({
+                title: '¿Está seguro?',
+                text: '¿Quiere eliminar el usuario?',
+                icon: 'warning',
+                showCancelButton: true,
+                cancelButtonText: 'No, cancelar',
+                confirmButtonText: 'Sí, eliminar',
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    fetch(`/usuarios/eliminar/${userId}/`, {  
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "X-CSRFToken": "{{ csrf_token }}"
+                        }
+                    })
+                    .then(response => response.json())  
+                    .then(data => {
+                        if (data.success) {
+                            Swal.fire({
+                                title: "LISTO!",
+                                text: data.message,
+                                icon: "success",
+                                showConfirmButton: false,
+                                timer: 2500
+                            }).then(() => {
+                                location.reload(); 
+                            });
+                        } else {
+                            Swal.fire("Error", data.message, "error");
+                        }
+                    });
+                }
+            });
+        });
+    }); 
+    // Paginación
+    function paginar(tablaId, paginacionId, filasPorPagina = 1) {
+        const tabla = document.getElementById(tablaId);
+        const tbody = tabla.querySelector("tbody");
+        const rows = Array.from(tbody.querySelectorAll("tr"));
+        const paginacion = document.getElementById(paginacionId);
+        let paginaActual = 1;
+        const totalPaginas = Math.ceil(rows.length / filasPorPagina);
+
+        function mostrarPagina(pagina) {
+            paginaActual = pagina;
+            const inicio = (pagina - 1) * filasPorPagina;
+            const fin = inicio + filasPorPagina;
+
+            rows.forEach((fila, i) => {
+                fila.style.display = (i >= inicio && i < fin) ? "" : "none";
+            });
+
+            renderBotones();
+        }
+
+        function renderBotones() {
+            paginacion.innerHTML = "";
+
+            if (totalPaginas <= 1) return;
+
+            const botones = [
+                { label: "«", action: () => mostrarPagina(1), disabled: paginaActual === 1 },
+                { label: "<", action: () => mostrarPagina(paginaActual - 1), disabled: paginaActual === 1 },
+                { label: ">", action: () => mostrarPagina(paginaActual + 1), disabled: paginaActual === totalPaginas },
+                { label: "»", action: () => mostrarPagina(totalPaginas), disabled: paginaActual === totalPaginas }
+            ];
+
+            botones.forEach(btn => {
+                const boton = document.createElement("button");
+                boton.textContent = btn.label;
+                boton.disabled = btn.disabled;
+                boton.addEventListener("click", btn.action);
+                paginacion.appendChild(boton);
+            });
+
+            const textoPagina = document.createElement("span");
+            textoPagina.textContent = ` Página ${paginaActual} de ${totalPaginas} `;
+            textoPagina.style.margin = "0 10px";
+            textoPagina.style.fontWeight = "bold";
+            paginacion.insertBefore(textoPagina, paginacion.children[2]);
+        }
+
+        mostrarPagina(paginaActual);
+    }
+
+    paginar("userTable", "paginacionUsuarios", 10);
+  
+</script>
+{% endblock %}
