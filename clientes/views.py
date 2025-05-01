@@ -1893,7 +1893,7 @@ def importar_clientes(request):
 
         for i, fila in enumerate(hoja.iter_rows(min_row=2, values_only=True), start=2):
             try:
-                numero, nombre, direccion, contacto, telefono, telefono_dos, correo = fila[:7]
+                numero, nombre, direccion, contacto, contacto_cargo, telefono, telefono_dos, correo = fila[:8]
             except ValueError:
                 errores.append(f"Fila {i}: Número incorrecto de columnas.")
                 continue
@@ -1912,6 +1912,7 @@ def importar_clientes(request):
             if cliente:
                 cliente.nombre_cliente = nombre
                 cliente.contacto_cliente = contacto
+                cliente.contacto_cargo = contacto_cargo or None
                 cliente.telefono_cliente = str(telefono)
                 cliente.telefono_dos = str(telefono_dos) if telefono_dos else None
                 cliente.correo = correo or None
@@ -1924,6 +1925,7 @@ def importar_clientes(request):
                     numero_cliente=numero,
                     nombre_cliente=nombre,
                     contacto_cliente=contacto,
+                    contacto_cargo=contacto_cargo or None,
                     telefono_cliente=str(telefono),
                     telefono_dos=str(telefono_dos) if telefono_dos else None,
                     correo=correo or None,

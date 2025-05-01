@@ -17,6 +17,7 @@ class Cliente(models.Model):
     numero_cliente = models.CharField(max_length=50, unique=True)
     nombre_cliente = models.CharField(max_length=255)
     contacto_cliente = models.CharField(max_length=255)
+    contacto_cargo = models.CharField(max_length=100, null=True, blank=True)
     telefono_cliente = models.CharField(max_length=50, null=True, blank=True)
     telefono_dos = models.CharField(max_length=50, null=True, blank=True)  
     direccion = models.CharField(max_length=255, null=True, blank=True)    
