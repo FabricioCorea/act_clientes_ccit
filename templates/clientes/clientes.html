@@ -81,7 +81,7 @@
                                     <button class="btn btn-sm btn-reportar"
                                             data-bs-toggle="modal" 
                                             data-bs-target="#modalReportarCliente"
-                                            onclick="abrirModalReportarCliente('{{ cliente.id }}','{{ cliente.numero_cliente }}','{{ cliente.nombre_cliente }}','{{ cliente.contacto_cliente }}','{{ cliente.telefono_cliente|default_if_none:"" }}','{{ cliente.telefono_dos|default_if_none:"" }}','{{ cliente.correo|default_if_none:"" }}','{{ cliente.direccion|default_if_none:"" }}')"
+                                            onclick="abrirModalReportarCliente('{{ cliente.id }}', '{{ cliente.numero_cliente }}', '{{ cliente.nombre_cliente }}', '{{ cliente.contacto_cliente }}', '{{ cliente.telefono_cliente|default_if_none:"" }}', '{{ cliente.telefono_dos|default_if_none:"" }}', '{{ cliente.correo|default_if_none:"" }}', '{{ cliente.direccion|default_if_none:"" }}', '{{ cliente.contacto_cargo|default_if_none:"" }}')"
                                             title="Llamar cliente">
                                         <i class="bi bi-telephone-fill"></i>
                                     </button>
@@ -195,7 +195,8 @@
                                             '{{ cliente.telefono_cliente|default_if_none:"" }}',
                                             '{{ cliente.telefono_dos|default_if_none:"" }}',
                                             '{{ cliente.correo|default_if_none:"" }}',
-                                            '{{ cliente.direccion|default_if_none:"" }}'
+                                            '{{ cliente.direccion|default_if_none:"" }}',
+                                            '{{ cliente.contacto_cargo|default_if_none:"" }}'
                                         )"
                                         title="Llamar cliente">
                                     <i class="bi bi-telephone-fill"></i>
@@ -484,6 +485,10 @@
                 </div>
             </div>
             
+            <div class="mb-2">
+                <label class="form-label">Cargo:</label>
+                <p id="modalCargoCliente" class="form-control-plaintext"></p>
+            </div>            
             <div class="mb-2">
                 <label class="form-label">Correo:</label>
                 <div>
@@ -1017,17 +1022,16 @@
         let datosTemporales = {};
 
         // Función para abrir el modal
-        window.abrirModalReportarCliente = function (id, numero, nombre, contacto, telefono, telefono2, correo, direccion) {
+        window.abrirModalReportarCliente = function (id, numero, nombre, contacto, telefono, telefono2, correo, direccion, cargo) {
             clienteIdInput.value = id;
-
-            // Mostrar la información del cliente en los campos correspondientes
+        
             modalNumeroCliente.innerText = 'Actualizar cliente: ' + numero;
             modalNombreCliente.innerText = nombre;
             modalContactoCliente.innerText = contacto;
             modalTelefonoCliente.innerText = telefono || "-";
             document.getElementById("modalTelefonoCliente2").innerText = telefono2 || "-";
-
-            // Aquí está el nuevo bloque modificado
+            document.getElementById("modalCargoCliente").innerText = cargo || "-";  // <---- NUEVO
+        
             const correoSpan = document.getElementById("modalCorreoCliente");
             const iconoCopiar = document.getElementById("iconoCopiarCorreo");
             correoSpan.innerText = correo || "-";
@@ -1036,16 +1040,16 @@
             } else {
                 iconoCopiar.style.display = "none";
             }
-
+        
             document.getElementById("modalDireccionCliente").innerText = direccion || "-";
-
+        
             const datos = datosTemporales[id] || {};
             inputNotas.value = datos.notas || "";
-
+        
             document.querySelectorAll('input[name="estado_reporte"]').forEach(r => {
                 r.checked = (r.value === datos.estado);
             });
-
+        
             if (datos.estado === "otro") {
                 estadoOtroInput.style.display = "inline-block";
                 btnAgregarEstado.style.display = "inline-block";
@@ -1058,6 +1062,7 @@
                 estadoOtroInput.value = "";
             }
         };
+        
 
         // Cambiar el comportamiento cuando el estado "Otro" es seleccionado
         document.querySelectorAll('input[name="estado_reporte"]').forEach(radio => {
