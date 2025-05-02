@@ -86,7 +86,8 @@ def clientes_pendientes(request):
         .exclude(nombre__iexact="pendiente") \
         .exclude(nombre__iexact="no localizado") \
         .exclude(nombre__iexact="por localizar") \
-        .exclude(nombre__iexact="formulario sin respuesta")
+        .exclude(nombre__iexact="formulario sin respuesta") \
+        .exclude(nombre__iexact="completado")
     # Clientes actualizados por el usuario hoy
     actualizados_hoy_qs = Cliente.objects.filter(
         estado_actual__nombre__iexact="actualizado",
@@ -174,7 +175,8 @@ def clientes_seguimiento(request):
         .exclude(nombre__iexact="pendiente") \
         .exclude(nombre__iexact="no localizado") \
         .exclude(nombre__iexact="por localizar") \
-        .exclude(nombre__iexact="formulario sin respuesta")
+        .exclude(nombre__iexact="formulario sin respuesta") \
+        .exclude(nombre__iexact="completado")
     
     # -------- Clientes actualizados hoy por el usuario ----------
     actualizados_hoy_qs = Cliente.objects.filter(
@@ -263,7 +265,8 @@ def clientes_sin_contestar(request):
         .exclude(nombre__iexact="pendiente") \
         .exclude(nombre__iexact="no localizado") \
         .exclude(nombre__iexact="por localizar") \
-        .exclude(nombre__iexact="formulario sin respuesta")
+        .exclude(nombre__iexact="formulario sin respuesta") \
+        .exclude(nombre__iexact="completado")
     
     # Clientes actualizados por el usuario hoy
     actualizados_hoy_qs = Cliente.objects.filter(
@@ -476,7 +479,7 @@ def clientes_actualizados(request):
 
     return render(request, 'clientes/clientes.html', {
         "clientes_actualizados": clientes_actualizados,
-        "estado_reporte": EstadoReporte.objects.filter(estado="activo").exclude(nombre__in=["pendiente", "no localizado", "por localizar", "formulario sin respuesta"]),
+        "estado_reporte": EstadoReporte.objects.filter(estado="activo").exclude(nombre__in=["pendiente", "no localizado", "por localizar", "formulario sin respuesta", "completado"]),
         "view_type": "actualizados",
         "search_query": search_query,
         "count_pendientes": Cliente.objects.filter(asignado_usuario=usuario, estado_actual__nombre__iexact="pendiente").count(),
@@ -1040,7 +1043,7 @@ def clientes_sin_asignar_view(request):
         estado_actual__nombre__iexact="actualizado"
     ).distinct()
 
-    usuarios_no_colectores = User.objects.exclude(groups__name="colector_group").filter(is_active=True)
+    usuarios_no_colectores = User.objects.exclude(groups__name="colector_group").exclude(username="rcoreas").filter(is_active=True)
 
     return render(request, "gestion/gestion.html", {
         "clientes_sin_asignar": clientes,
