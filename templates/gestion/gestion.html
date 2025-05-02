@@ -529,6 +529,7 @@
                             <th>Contacto</th>
                             <th>Usuario</th>
                             <th>Estado</th>
+                            <th>Acciones</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -552,6 +553,21 @@
                                     Sin estado
                                 {% endif %}
                             </td>
+                            <td>
+                                <button class="btn btn-sm btn-edit d-flex justify-content-center align-items-center" 
+                                    style="width: 35px; height: 35px;"
+                                    data-bs-toggle="modal" 
+                                    data-bs-target="#modalEditarCliente"
+                                    data-id="{{ cliente.id }}"
+                                    data-numero="{{ cliente.numero_cliente }}"
+                                    data-nombre="{{ cliente.nombre_cliente }}"
+                                    data-contacto="{{ cliente.contacto_cliente }}"
+                                    data-usuario="{{ cliente.asignado_usuario.id|default:'' }}"
+                                    data-estado="{{ cliente.estado_actual.nombre|lower }}">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                        
+                            </td>                            
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -683,6 +699,80 @@
         </div>
     </div>
 </div>
+<div class="modal fade" id="modalEditarCliente" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" action="{% url 'editar_cliente' %}" id="formEditarCliente">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <div>
+                        <h5 class="modal-title" id="modalNumeroCliente"></h5>
+                        <p id="modalNombreCliente" class="form-control-plaintext mb-0 text-muted"></p>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" name="cliente_id" id="modalClienteId">
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Contacto:</label>
+                        <p id="modalContactoCliente" class="form-control-plaintext"></p>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Estado:</label>
+                        <div>
+                            <div class="form-check">
+                                <input class="form-check-input estado-radio" type="radio" name="estado" value="pendiente" id="estadoPendiente">
+                                <label class="form-check-label" for="estadoPendiente">Pendiente</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input estado-radio" type="radio" name="estado" value="completado" id="estadoCompletado">
+                                <label class="form-check-label" for="estadoCompletado">Completado</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input estado-radio" type="radio" name="estado" value="actualizado" id="estadoActualizado">
+                                <label class="form-check-label" for="estadoActualizado">Actualizado</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3 d-none" id="asignacionUsuario">
+                        <label class="form-label">Asignar a usuario:</label>
+                        <select class="form-select" name="usuario_id" id="usuarioSelect">
+                            {% for user in usuarios %}
+                                {% if user.username != 'rcoreas' %}
+                                    <option value="{{ user.id }}">{{ user.get_full_name }}</option>
+                                {% endif %}
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Motivo de cambio:</label>
+                        <input type="text" class="form-control" name="motivo" required>
+                    </div>
+
+                    <div class="mb-3 d-none" id="acreditarMovimiento">
+                        <label class="form-label">Acreditar movimiento a:</label>
+                        <select class="form-select" name="acreditar_id" id="acreditarSelect">
+                            {% for user in usuarios %}
+                                {% if user.username != 'rcoreas' %}
+                                    <option value="{{ user.id }}">{{ user.get_full_name }}</option>
+                                {% endif %}
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Guardar cambios</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <style>
     .tabs-container {
         gap: 10px;
@@ -901,15 +991,20 @@
         transform: translateX(14px);
     }
     .btn-edit {
-        background: transparent;  
-        border: none;              
-        padding: 0;                
-        cursor: pointer;         
+        background-color: #e67e22;
+        color: black;
+        font-weight: bold;
+        font-size: 13px;
+        padding: 5px 10px;
+        border-radius: 4px;
+        transition: all 0.3s ease; 
     }
     
-    .btn-edit i {
-        font-size: 18px;  
-        color: #e67e22;  
+    .btn-edit:hover {
+        background-color: #cf6d17;
+        color: white;
+        transform: scale(1.05);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); 
     }
     .btn-delete {
         background: transparent;  
@@ -1163,6 +1258,75 @@
         document.getElementById("modalColectorClienteNumero").innerText = numero;
         document.getElementById("modalColectorClienteNombre").innerText = nombre;
     };
+    
+    document.addEventListener('DOMContentLoaded', function () {
+        const modal = document.getElementById('modalEditarCliente');
+        let currentEstado = '';
+    
+        modal.addEventListener('show.bs.modal', function (event) {
+            const button = event.relatedTarget;
+            const clienteId = button.getAttribute('data-id');
+            const numeroCliente = button.getAttribute('data-numero');
+            const nombreCliente = button.getAttribute('data-nombre');
+            const contactoCliente = button.getAttribute('data-contacto');
+            const usuarioId = button.getAttribute('data-usuario');
+            currentEstado = button.getAttribute('data-estado'); // ← llega en minúsculas
+    
+            modal.querySelector('#modalClienteId').value = clienteId;
+            modal.querySelector('#modalNumeroCliente').textContent = numeroCliente;
+            modal.querySelector('#modalNombreCliente').textContent = nombreCliente;
+            modal.querySelector('#modalContactoCliente').textContent = contactoCliente;
+            modal.querySelector('#usuarioSelect').value = usuarioId;
+            modal.querySelector('#acreditarSelect').value = usuarioId;
+    
+            const radios = modal.querySelectorAll('.estado-radio');
+            radios.forEach(radio => {
+                radio.checked = (radio.value === currentEstado);
+            });
+    
+            ajustarCampos(currentEstado, currentEstado); // estado seleccionado igual al actual al abrir
+        });
+    
+        document.querySelectorAll('.estado-radio').forEach(radio => {
+            radio.addEventListener('change', function () {
+                ajustarCampos(this.value, currentEstado);
+            });
+        });
+    
+        function ajustarCampos(selectedEstado, currentEstado) {
+            const asignacion = document.getElementById('asignacionUsuario');
+            const acreditar = document.getElementById('acreditarMovimiento');
+            const motivo = document.querySelector('input[name="motivo"]').closest('.mb-3');
+    
+            // Mostrar secciones según estado seleccionado
+            if (selectedEstado === 'pendiente') {
+                asignacion.classList.remove('d-none');
+                acreditar.classList.add('d-none');
+                motivo.classList.remove('d-none');
+            } else if (selectedEstado === 'completado' || selectedEstado === 'actualizado') {
+                asignacion.classList.add('d-none');
+                acreditar.classList.remove('d-none');
+                motivo.classList.remove('d-none');
+            }
+    
+            // Si no hay cambio y no es pendiente → ocultar motivo y acreditar
+            if (selectedEstado === currentEstado && currentEstado !== 'pendiente') {
+                motivo.classList.add('d-none');
+                acreditar.classList.add('d-none');
+            }
+        }
+    
+        const form = document.getElementById('formEditarCliente');
+        form.addEventListener('submit', function (e) {
+            const selectedEstado = form.querySelector('input[name="estado"]:checked').value;
+            if (selectedEstado === currentEstado && selectedEstado !== 'pendiente') {
+                e.preventDefault();
+                alert('El cliente ya tiene este estado. Selecciona uno diferente para actualizar.');
+            }
+        });
+    });
+    
+    
     
 
     document.addEventListener("DOMContentLoaded", function () {

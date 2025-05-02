@@ -18,10 +18,11 @@ from django.db.models import Max, F, Prefetch
 import openpyxl
 from openpyxl import Workbook
 from django.http import HttpResponse
-from django.db.models import Exists, OuterRef, Q
+from django.db.models import Exists, OuterRef, Q, Case, When, CharField, F, CharField, F, Q, Subquery, OuterRef, Value
 from django.db.models import Subquery,  DateTimeField
 from collections import defaultdict
 from django.core.paginator import Paginator
+from django.db import transaction
 
 
 @login_required
@@ -736,7 +737,7 @@ def clientes_reportados(request):
         'estado_actual'
     )
 
-    # Filtro por grupo
+    # Filtrar clientes según grupo
     if "super_admin" in grupos or "admin_group" in grupos:
         clientes_filtrados = clientes_reportados_query
 
@@ -777,11 +778,20 @@ def clientes_reportados(request):
             if not h.genera_movimiento
         ]
 
-        cliente.todos_los_movimientos = sorted(
+        todos_movimientos = sorted(
             movimientos_normales + movimientos_historial,
             key=lambda x: x["obj"].fecha_hora,
             reverse=True
         )
+
+        # Filtrar solo los que NO tienen actualizado_por_admin
+        movimientos_sin_admin = [
+            m for m in todos_movimientos
+            if getattr(m["obj"], "actualizado_por_admin", None) is None
+        ]
+
+        cliente.todos_los_movimientos = todos_movimientos  # para la tabla completa
+        cliente.movimientos_sin_admin = movimientos_sin_admin  # para el conteo
 
         cliente.ultimo_movimiento = cliente.movimientos.order_by('-fecha_hora').first()
         cliente.reportado_por = (
@@ -795,7 +805,6 @@ def clientes_reportados(request):
         "search_query": search_query,
         "count_reportados": clientes_filtrados.count(),
     })
-
 @login_required
 def dashboard_reportes(request):
     if not request.user.groups.filter(name__in=['super_admin', 'admin_group']).exists():
@@ -839,7 +848,10 @@ def dashboard_reportes(request):
     clientes_colector = clientes_colector_qs.count()
 
     clientes_totales = Cliente.objects.count()
-    clientes_totales_colector = Cliente.objects.filter(movimientos__estado__nombre__iexact="por localizar").distinct().count()
+    clientes_totales_colector = Cliente.objects.filter(
+        asignado_usuario__groups=grupo_colector
+    ).distinct().count()
+
 
     estado_por_localizar = EstadoReporte.objects.filter(nombre__iexact="por localizar").first()
     clientes_sin_reportar_colector = Cliente.objects.filter(estado_actual=estado_por_localizar).count() if estado_por_localizar else 0
@@ -1487,7 +1499,6 @@ def clientes_todos_view(request):
         messages.error(request, "Acceso no permitido.")
         return redirect("login")
 
-
     hoy = timezone.localdate()
     search_query = request.GET.get("q", "").strip()
 
@@ -1501,11 +1512,10 @@ def clientes_todos_view(request):
 
     clientes = paginar_queryset(request, clientes_qs, "todos")
 
-    # Contadores generales
     estado_pendiente = EstadoReporte.objects.filter(nombre__iexact="pendiente").first()
     estado_no_contesto = EstadoReporte.objects.filter(nombre__iexact="no contestó").first()
 
-    clientes_seguimiento_qs  = Cliente.objects.filter(
+    clientes_seguimiento_qs = Cliente.objects.filter(
         estado_actual__in=EstadoReporte.objects.filter(
             genera_movimiento=False
         ).exclude(nombre__iexact="pendiente")
@@ -1549,6 +1559,7 @@ def clientes_todos_view(request):
         "count_actualizados_hoy": actualizados_hoy_qs.count() + clientes_sin_actualizar_hoy_qs.count(),
         "count_sin_asignar": Cliente.objects.filter(asignado_usuario__isnull=True).count(),
         "count_colectores": Cliente.objects.filter(estado_actual__nombre__iexact="por localizar").count(),
+        "usuarios": User.objects.exclude(username__in=['rcoreas', 'colector']),
     })
 
 @login_required
@@ -1710,45 +1721,80 @@ def clientes_colectores_pendientes(request):
 
     usuario = request.user
     search_query = request.GET.get("q", "").strip()
-    estado_por_localizar = EstadoReporte.objects.filter(nombre__iexact="por localizar").first()
-    estado_actualizado = EstadoReporte.objects.filter(nombre__iexact="actualizado").first()
 
-    # Subquery para obtener el último estado (por fecha) de cada cliente
-    ult_estado_subquery = MovimientoEstado.objects.filter(
+    # Último estado en MovimientoEstado
+    ult_estado_mov_subquery = MovimientoEstado.objects.filter(
         cliente=OuterRef('pk')
     ).order_by('-fecha_hora').values('estado__nombre')[:1]
 
-    ult_fecha_subquery = MovimientoEstado.objects.filter(
+    ult_fecha_mov_subquery = MovimientoEstado.objects.filter(
         cliente=OuterRef('pk')
     ).order_by('-fecha_hora').values('fecha_hora')[:1]
 
-    # Clientes asignados al usuario y con último estado 'por localizar'
-    clientes_por_localizar_qs = Cliente.objects.filter(
+    # Último estado en HistorialEstadoSinMovimiento
+    ult_estado_hist_subquery = HistorialEstadoSinMovimiento.objects.filter(
+        cliente=OuterRef('pk')
+    ).order_by('-fecha_hora').values('estado__nombre')[:1]
+
+    ult_fecha_hist_subquery = HistorialEstadoSinMovimiento.objects.filter(
+        cliente=OuterRef('pk')
+    ).order_by('-fecha_hora').values('fecha_hora')[:1]
+
+    # Base queryset
+    clientes_qs = Cliente.objects.filter(
         asignado_usuario=usuario
     ).annotate(
-        ultimo_estado=Subquery(ult_estado_subquery),
-        ultima_fecha=Subquery(ult_fecha_subquery)
+        ult_estado_mov=Subquery(ult_estado_mov_subquery),
+        ult_fecha_mov=Subquery(ult_fecha_mov_subquery),
+        ult_estado_hist=Subquery(ult_estado_hist_subquery),
+        ult_fecha_hist=Subquery(ult_fecha_hist_subquery),
+    ).annotate(
+        ultimo_estado=Case(
+            When(Q(ult_fecha_mov__isnull=False) & Q(ult_fecha_hist__isnull=True), then=F('ult_estado_mov')),
+            When(Q(ult_fecha_hist__isnull=False) & Q(ult_fecha_mov__isnull=True), then=F('ult_estado_hist')),
+            When(Q(ult_fecha_mov__gte=F('ult_fecha_hist')), then=F('ult_estado_mov')),
+            When(Q(ult_fecha_hist__gt=F('ult_fecha_mov')), then=F('ult_estado_hist')),
+            default=Value(''),
+            output_field=CharField()
+        ),
+        ultima_fecha=Case(
+            When(Q(ult_fecha_mov__isnull=False) & Q(ult_fecha_hist__isnull=True), then=F('ult_fecha_mov')),
+            When(Q(ult_fecha_hist__isnull=False) & Q(ult_fecha_mov__isnull=True), then=F('ult_fecha_hist')),
+            When(Q(ult_fecha_mov__gte=F('ult_fecha_hist')), then=F('ult_fecha_mov')),
+            When(Q(ult_fecha_hist__gt=F('ult_fecha_mov')), then=F('ult_fecha_hist')),
+            default=None,
+        )
     ).filter(
-        ultimo_estado__iexact="por localizar"
-    ).order_by('-ultima_fecha')
+        Q(ultimo_estado__iexact="por localizar") | Q(ultimo_estado__iexact="pendiente")
+    ).order_by(
+        F('ultima_fecha').desc(nulls_last=True)
+    )
 
     if search_query:
-        clientes_por_localizar_qs = clientes_por_localizar_qs.filter(
+        clientes_qs = clientes_qs.filter(
             Q(nombre_cliente__icontains=search_query) |
             Q(numero_cliente__icontains=search_query) |
             Q(contacto_cliente__icontains=search_query)
         )
 
-    clientes_por_localizar = paginar_queryset(request, clientes_por_localizar_qs, 'pendientes')
+    clientes = paginar_queryset(request, clientes_qs, 'pendientes')
 
     return render(request, "clientes/clientes_colectores.html", {
-        "clientes": clientes_por_localizar,
+        "clientes": clientes,
         "view_type": "pendientes",
         "search_query": search_query,
-        "count_pendientes": clientes_por_localizar_qs.count(),
-        "count_completados": Cliente.objects.filter(movimientos__actualizado_por=usuario).exclude(estado_actual=estado_actualizado).distinct().count(),
-        "count_actualizados": MovimientoEstado.objects.filter(estado=estado_actualizado, actualizado_por=usuario).count(),
-        "estado_reporte": EstadoReporte.objects.filter(nombre__in=["Actualizado", "Se negó", "No localizado", "Liquidada"])
+        "count_pendientes": clientes_qs.count(),
+        "count_completados": Cliente.objects.filter(
+            movimientos__actualizado_por=usuario
+        ).exclude(
+            estado_actual__nombre__iexact="actualizado"
+        ).distinct().count(),
+        "count_actualizados": MovimientoEstado.objects.filter(
+            estado__nombre__iexact="actualizado", actualizado_por=usuario
+        ).count(),
+        "estado_reporte": EstadoReporte.objects.filter(
+            nombre__in=["Actualizado", "Se negó", "No localizado", "Liquidada"]
+        )
     })
 
 @login_required
@@ -2108,3 +2154,95 @@ def exportar_clientes(request):
     response["Content-Disposition"] = f"attachment; filename={nombre_archivo}"
     wb.save(response)
     return response
+
+@login_required
+@require_POST
+@transaction.atomic
+def editar_cliente(request):
+    cliente_id = request.POST.get("cliente_id")
+    estado_nombre = request.POST.get("estado")
+    motivo = request.POST.get("motivo")
+    usuario_id = request.POST.get("usuario_id")  # para asignar
+    acreditar_id = request.POST.get("acreditar_id")  # para acreditar
+
+    cliente = get_object_or_404(Cliente, id=cliente_id)
+    estado = get_object_or_404(EstadoReporte, nombre__iexact=estado_nombre)
+    estado_anterior = cliente.estado_actual
+
+    if estado_nombre == 'pendiente':
+        # ✅ Obtener último usuario antes de borrar
+        ultimo_movimiento = MovimientoEstado.objects.filter(cliente=cliente).order_by('-fecha_hora').first()
+        ultimo_historial = HistorialEstadoSinMovimiento.objects.filter(cliente=cliente).order_by('-fecha_hora').first()
+
+        ultimo_usuario = None
+        if ultimo_movimiento and ultimo_movimiento.actualizado_por:
+            ultimo_usuario = ultimo_movimiento.actualizado_por
+        elif ultimo_historial and ultimo_historial.actualizado_por:
+            ultimo_usuario = ultimo_historial.actualizado_por
+        else:
+            ultimo_usuario = request.user  # fallback
+
+        # Borrar movimientos previos
+        NotaMovimiento.objects.filter(movimiento__cliente=cliente).delete()
+        MovimientoEstado.objects.filter(cliente=cliente).delete()
+        HistorialEstadoSinMovimiento.objects.filter(cliente=cliente).delete()
+
+        # Asignar usuario si se indica
+        if usuario_id:
+            asignado = get_object_or_404(User, id=usuario_id)
+            cliente.asignado_usuario = asignado
+
+        cliente.estado_actual = estado
+        cliente.veces_contactado = 0
+        cliente.sin_contestar = 0
+        cliente.formulario_sin_contestar = 0
+        cliente.save()
+
+        # Registrar como historial sin movimiento
+        HistorialEstadoSinMovimiento.objects.create(
+            cliente=cliente,
+            estado=estado,
+            actualizado_por=ultimo_usuario,
+            actualizado_por_admin=request.user if request.user.is_staff else None,
+            nota=motivo or "Cambio a pendiente",
+            genera_movimiento=False
+        )
+
+    elif estado_nombre in ['actualizado', 'completado']:
+        if acreditar_id:
+            acreditar_usuario = get_object_or_404(User, id=acreditar_id)
+        else:
+            acreditar_usuario = request.user
+
+        movimiento = MovimientoEstado.objects.create(
+            cliente=cliente,
+            estado=estado,
+            actualizado_por=acreditar_usuario,
+            actualizado_por_admin=request.user
+        )
+
+        if motivo:
+            NotaMovimiento.objects.create(movimiento=movimiento, texto=motivo)
+
+        cliente.estado_actual = estado
+        cliente.veces_contactado += 1
+        cliente.sin_contestar = 0
+        cliente.formulario_sin_contestar = 0
+        cliente.save()
+
+    else:
+        cliente.estado_actual = estado
+        cliente.veces_contactado += 1
+        cliente.save()
+
+    # Registrar motivo de cambio
+    MotivoCambioEstado.objects.create(
+        cliente=cliente,
+        estado_anterior=estado_anterior,
+        estado_nuevo=estado,
+        motivo=motivo,
+        actualizado_por=request.user
+    )
+
+    messages.success(request, "Cliente actualizado exitosamente.")
+    return redirect('gestion')

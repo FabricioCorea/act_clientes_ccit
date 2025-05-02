@@ -68,7 +68,8 @@ def user_list(request):
     elif is_admin_group:
         users = User.objects.prefetch_related('groups').exclude(groups__name="super_admin").exclude(username="colector")
 
-    groups = Group.objects.all()
+    groups = Group.objects.exclude(name="super_admin")
+
 
     return render(request, 'auth/user_list.html', {
         'users': users,

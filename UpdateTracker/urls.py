@@ -43,6 +43,8 @@ urlpatterns = [
     path('colectores/completados/', vistasClientes.clientes_colectores_completados, name='clientes_colectores_completados'),
     path('colectores/actualizados/', vistasClientes.clientes_colectores_actualizados, name='clientes_colectores_actualizados'),
 
+    path('clientes/editar/', vistasClientes.editar_cliente, name='editar_cliente'),
+
 
     path('clientes/importar/', vistasClientes.importar_clientes, name='importar_clientes'),
     path('exportar_clientes/', vistasClientes.exportar_clientes, name='exportar_clientes'),

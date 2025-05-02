@@ -40,6 +40,7 @@ class MovimientoEstado(models.Model):
     cliente = models.ForeignKey(Cliente, on_delete=models.CASCADE, related_name='movimientos')
     estado = models.ForeignKey(EstadoReporte, on_delete=models.SET_NULL, null=True)
     actualizado_por = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+    actualizado_por_admin = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='movimientos_admin')
     fecha_hora = models.DateTimeField(auto_now_add=True)
     
 
@@ -59,9 +60,20 @@ class HistorialEstadoSinMovimiento(models.Model):
     cliente = models.ForeignKey(Cliente, on_delete=models.CASCADE, related_name='historial_sin_movimiento')
     estado = models.ForeignKey(EstadoReporte, on_delete=models.SET_NULL, null=True)
     actualizado_por = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+    actualizado_por_admin = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='historial_admin')
     nota = models.CharField(max_length=500, blank=True)
     fecha_hora = models.DateTimeField(auto_now_add=True)
     genera_movimiento = models.BooleanField(default=False) 
 
     def __str__(self):
         return f"{self.cliente} - {self.estado} ({self.fecha_hora})"
+class MotivoCambioEstado(models.Model):
+    cliente = models.ForeignKey(Cliente, on_delete=models.CASCADE, related_name='motivos_cambio')
+    estado_anterior = models.ForeignKey(EstadoReporte, on_delete=models.SET_NULL, null=True, related_name='motivos_anteriores')
+    estado_nuevo = models.ForeignKey(EstadoReporte, on_delete=models.SET_NULL, null=True, related_name='motivos_nuevos')
+    motivo = models.CharField(max_length=500)
+    actualizado_por = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+    fecha_hora = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.cliente} - {self.estado_anterior} → {self.estado_nuevo} ({self.fecha_hora})"
