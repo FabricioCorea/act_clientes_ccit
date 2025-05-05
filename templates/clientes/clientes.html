@@ -456,86 +456,96 @@
          
 <!-- Modal Reportar Cliente -->
 <div class="modal fade" id="modalReportarCliente" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-xl">
       <div class="modal-content">
         <form method="POST" action="{% url 'reportar_cliente' %}" id="formReportarCliente">
           {% csrf_token %}
           <div class="modal-header">
             <div>
               <h5 class="modal-title" id="modalNumeroCliente"></h5>
-              <p id="modalNombreCliente" class="form-control-plaintext mb-0 text-muted" style="margin-top: 4px;"></p>
+              <p class="form-control-plaintext mb-0 text-muted" style="margin-top: 4px;">
+                <span id="spanNombreCliente"></span>
+                <i class="icon-copy ms-2"
+                   style="cursor: pointer; vertical-align: middle;"
+                   onclick="copiarTexto('spanNombreCliente', this)"
+                   title="Copiar nombre"></i>
+              </p>
             </div>
             <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
           </div>
+  
           <div class="modal-body">
             <input type="hidden" name="cliente_id" id="modalClienteId">
-            <!-- Información del cliente que no cambia -->
+  
             <div class="row mb-2">
-                <div class="col-6">
-                    <label class="form-label">Llamando a:</label>
-                    <p id="modalContactoCliente" class="form-control-plaintext"></p>
-                </div>
-                <div class="col-3">
-                    <label class="form-label">Teléfono:</label>
-                    <p id="modalTelefonoCliente" class="form-control-plaintext"></p>
-                </div>
-                <div class="col-3">
-                    <label class="form-label">Teléfono 2:</label>
-                    <p id="modalTelefonoCliente2" class="form-control-plaintext"></p>
-                </div>
+              <div class="col-6">
+                <label class="form-label">Llamando a:</label>
+                <p class="form-control-plaintext">
+                  <span id="spanContactoCliente"></span>
+                  <i class="icon-copy ms-2"
+                     style="cursor: pointer; vertical-align: middle;"
+                     onclick="copiarTexto('spanContactoCliente', this)"
+                     title="Copiar contacto"></i>
+                </p>
+              </div>
+              <div class="col-3">
+                <label class="form-label">Teléfono:</label>
+                <p id="modalTelefonoCliente" class="form-control-plaintext"></p>
+              </div>
+              <div class="col-3">
+                <label class="form-label">Teléfono 2:</label>
+                <p id="modalTelefonoCliente2" class="form-control-plaintext"></p>
+              </div>
             </div>
-            
+  
             <div class="mb-2">
-                <label class="form-label">Cargo:</label>
-                <p id="modalCargoCliente" class="form-control-plaintext"></p>
-            </div>            
-            <div class="mb-2">
-                <label class="form-label">Correo:</label>
-                <div>
-                    <span id="modalCorreoCliente" class="form-control-plaintext mb-0" style="display: inline;"></span>
-                    <i id="iconoCopiarCorreo"
-                       class="bi bi-clipboard ms-2"
-                       style="cursor: pointer; color: black; font-size: 1.1rem; vertical-align: middle;"
-                       onclick="copiarCorreo()"
-                       title="Copiar correo">
-                    </i>
-                </div>
+              <label class="form-label">Cargo:</label>
+              <p id="modalCargoCliente" class="form-control-plaintext"></p>
             </div>
-                      
-        
+  
+            <div class="mb-2">
+              <label class="form-label">Correo:</label>
+              <div>
+                <span id="modalCorreoCliente" class="form-control-plaintext mb-0" style="display: inline;"></span>
+                <i class="icon-copy ms-2"
+                   style="cursor: pointer; vertical-align: middle;"
+                   onclick="copiarTexto('modalCorreoCliente', this)"
+                   title="Copiar correo"></i>
+              </div>
+            </div>
+  
             <hr>
-        
+  
             <div class="mb-3">
-                <label class="form-label d-block">Estado: <span class="text-danger">*</span></label>
-                <div class="row" id="estadoContainer">
-                    {% for estado in estado_reporte %}
-                    <div class="col-6 mb-2">
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" name="estado_reporte" id="estado_{{ estado.id }}" value="{{ estado.id }}" required>
-                            <label class="form-check-label" for="estado_{{ estado.id }}">
-                                {{ estado.nombre }}
-                            </label>
-                        </div>
-                    </div>
-                    {% endfor %}
-                    <!-- Opción "Otro" -->
-                    <div class="col-12 mt-2">
-                        <div class="form-check d-flex align-items-center">
-                            <input class="form-check-input me-2" type="radio" name="estado_reporte" id="estado_otro_radio" value="otro">
-                            <label class="form-check-label me-2" for="estado_otro_radio">Otro...</label>
-                            <input type="text" class="form-control me-2" name="estado_otro" id="estado_otro_input" placeholder="Nuevo estado" style="display: none; width: 50%;" autocomplete="off">
-                            <button type="button" class="btn btn-sm btn-success" id="btnAgregarEstado" style="display: none;">+</button>
-                        </div>
-                    </div>
+              <label class="form-label d-block">Estado: <span class="text-danger">*</span></label>
+              <div class="row" id="estadoContainer">
+                {% for estado in estado_reporte %}
+                <div class="col-6 mb-2">
+                  <div class="form-check">
+                    <input class="form-check-input" type="radio" name="estado_reporte" id="estado_{{ estado.id }}" value="{{ estado.id }}" required>
+                    <label class="form-check-label" for="estado_{{ estado.id }}">
+                      {{ estado.nombre }}
+                    </label>
+                  </div>
                 </div>
+                {% endfor %}
+                <div class="col-12 mt-2">
+                  <div class="form-check d-flex align-items-center">
+                    <input class="form-check-input me-2" type="radio" name="estado_reporte" id="estado_otro_radio" value="otro">
+                    <label class="form-check-label me-2" for="estado_otro_radio">Otro...</label>
+                    <input type="text" class="form-control me-2" name="estado_otro" id="estado_otro_input" placeholder="Nuevo estado" style="display: none; width: 50%;" autocomplete="off">
+                    <button type="button" class="btn btn-sm btn-success" id="btnAgregarEstado" style="display: none;">+</button>
+                  </div>
+                </div>
+              </div>
             </div>
-            
-        
+  
             <div class="mb-3" id="campoNotas">
-                <label class="form-label">Notas:</label>
-                <input type="text" class="form-control" name="notas" placeholder="Escriba una nota...">
+              <label class="form-label">Notas:</label>
+              <input type="text" class="form-control" name="notas" placeholder="Escriba una nota...">
             </div>
-        </div>
+          </div>
+  
           <div class="modal-footer">
             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
             <button type="submit" class="btn btn-confirm">Enviar</button>
@@ -544,8 +554,22 @@
       </div>
     </div>
 </div>
-
+  
 <style>
+    .icon-copy {
+        display: inline-block;
+        width: 20px;
+        height: 20px;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24'%3E%3Cpath fill='black' d='M7 5C7 3.34 8.34 2 10 2H19C20.65 2 22 3.34 22 5V14C22 15.65 20.65 17 19 17H17V19C17 20.65 15.65 22 14 22H5C3.34 22 2 20.65 2 19V10C2 8.34 3.34 7 5 7H7V5ZM9 7H14C15.65 7 17 8.34 17 10V15H19C19.55 15 20 14.55 20 14V5C20 4.45 19.55 4 19 4H10C9.45 4 9 4.45 9 5V7ZM5 9C4.45 9 4 9.45 4 10V19C4 19.55 4.45 20 5 20H14C14.55 20 15 19.55 15 19V10C15 9.45 14.55 9 14 9H5Z'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: center;
+        background-size: contain;
+    }
+    
+    .icon-copy.active {
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24'%3E%3Cpath fill='%230d6efd' d='M7 5C7 3.34 8.34 2 10 2H19C20.65 2 22 3.34 22 5V14C22 15.65 20.65 17 19 17H17V19C17 20.65 15.65 22 14 22H5C3.34 22 2 20.65 2 19V10C2 8.34 3.34 7 5 7H7V5ZM9 7H14C15.65 7 17 8.34 17 10V15H19C19.55 15 20 14.55 20 14V5C20 4.45 19.55 4 19 4H10C9.45 4 9 4.45 9 5V7ZM5 9C4.45 9 4 9.45 4 10V19C4 19.55 4.45 20 5 20H14C14.55 20 15 19.55 15 19V10C15 9.45 14.55 9 14 9H5Z'/%3E%3C/svg%3E");
+    }
+    
     .tabs-container {
         gap: 10px;
     }
@@ -1026,11 +1050,13 @@
             clienteIdInput.value = id;
         
             modalNumeroCliente.innerText = 'Actualizar cliente: ' + numero;
-            modalNombreCliente.innerText = nombre;
-            modalContactoCliente.innerText = contacto;
+            document.getElementById("spanNombreCliente").innerText = nombre || "-";
+            document.getElementById("spanContactoCliente").innerText = contacto || "-";
             modalTelefonoCliente.innerText = telefono || "-";
             document.getElementById("modalTelefonoCliente2").innerText = telefono2 || "-";
-            document.getElementById("modalCargoCliente").innerText = cargo || "-";  // <---- NUEVO
+            document.getElementById("modalCargoCliente").innerText = cargo || "-";
+            document.getElementById("modalCorreoCliente").innerText = correo || "-";
+
         
             const correoSpan = document.getElementById("modalCorreoCliente");
             const iconoCopiar = document.getElementById("iconoCopiarCorreo");
@@ -1214,8 +1240,20 @@
                     filtrar();
                 }
             });
-        }
+        };
         
+        window.copiarTexto = function (elementId, icono) {
+            const texto = document.getElementById(elementId).textContent.trim();
+        
+            if (texto && texto !== "-") {
+                navigator.clipboard.writeText(texto).then(() => {
+                    icono.classList.add("active");
+                    setTimeout(() => {
+                        icono.classList.remove("active");
+                    }, 2000);
+                });
+            }
+        }; 
         
         // Activar búsqueda según el view_type del tab actual
         {% if view_type == 'pendientes' %}
@@ -1228,24 +1266,7 @@
             setupBusqueda("searchInputCompletados", "tablaCompletados");
         {% elif view_type == 'actualizados' %}
             setupBusqueda("searchInputActualizados", "tablaActualizados");
-        {% endif %}
-
-        window.copiarCorreo = function () {
-            const correo = document.getElementById("modalCorreoCliente").textContent.trim();
-            const icono = document.getElementById("iconoCopiarCorreo");
-        
-            if (correo && correo !== "-") {
-                navigator.clipboard.writeText(correo).then(() => {
-                    icono.style.color = "#0d6efd";
-                    setTimeout(() => {
-                        icono.style.color = "black";
-                    }, 2000);
-                });
-            }
-        }
-        
+        {% endif %}      
     });
 </script>
 {% endblock %}
-
-
