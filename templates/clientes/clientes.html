@@ -453,21 +453,21 @@
         </div>
         {% endif %}
     </div>
-         
+
 <!-- Modal Reportar Cliente -->
 <div class="modal fade" id="modalReportarCliente" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-xl">
+    <div class="modal-dialog modal-lg">
       <div class="modal-content">
         <form method="POST" action="{% url 'reportar_cliente' %}" id="formReportarCliente">
           {% csrf_token %}
           <div class="modal-header">
-            <div>
+            <div class="w-100">
               <h5 class="modal-title" id="modalNumeroCliente"></h5>
               <p class="form-control-plaintext mb-0 text-muted" style="margin-top: 4px;">
                 <span id="spanNombreCliente"></span>
-                <i class="icon-copy ms-2"
-                   style="cursor: pointer; vertical-align: middle;"
-                   onclick="copiarTexto('spanNombreCliente', this)"
+                <input type="text" id="inputNombreCliente" readonly hidden>
+                <i id="iconoCopiarNombre" class="icon-copy ms-2" style="cursor: pointer;"
+                   onclick="copiarTextoDeSpan('spanNombreCliente', 'inputNombreCliente', 'iconoCopiarNombre')"
                    title="Copiar nombre"></i>
               </p>
             </div>
@@ -482,9 +482,9 @@
                 <label class="form-label">Llamando a:</label>
                 <p class="form-control-plaintext">
                   <span id="spanContactoCliente"></span>
-                  <i class="icon-copy ms-2"
-                     style="cursor: pointer; vertical-align: middle;"
-                     onclick="copiarTexto('spanContactoCliente', this)"
+                  <input type="text" id="inputContactoCliente" readonly hidden>
+                  <i id="iconoCopiarContacto" class="icon-copy ms-2" style="cursor: pointer;"
+                     onclick="copiarTextoDeSpan('spanContactoCliente', 'inputContactoCliente', 'iconoCopiarContacto')"
                      title="Copiar contacto"></i>
                 </p>
               </div>
@@ -506,15 +506,13 @@
             <div class="mb-2">
               <label class="form-label">Correo:</label>
               <div>
-                <span id="modalCorreoCliente" class="form-control-plaintext mb-0" style="display: inline;"></span>
-                <i class="icon-copy ms-2"
-                   style="cursor: pointer; vertical-align: middle;"
-                   onclick="copiarTexto('modalCorreoCliente', this)"
+                <span id="modalCorreoCliente"></span>
+                <input type="text" id="inputCorreoCliente" readonly hidden>
+                <i id="iconoCopiarCorreo" class="icon-copy ms-2" style="cursor: pointer;"
+                   onclick="copiarTextoDeSpan('modalCorreoCliente', 'inputCorreoCliente', 'iconoCopiarCorreo')"
                    title="Copiar correo"></i>
               </div>
             </div>
-  
-            <hr>
   
             <div class="mb-3">
               <label class="form-label d-block">Estado: <span class="text-danger">*</span></label>
@@ -522,7 +520,8 @@
                 {% for estado in estado_reporte %}
                 <div class="col-6 mb-2">
                   <div class="form-check">
-                    <input class="form-check-input" type="radio" name="estado_reporte" id="estado_{{ estado.id }}" value="{{ estado.id }}" required>
+                    <input class="form-check-input" type="radio" name="estado_reporte"
+                           id="estado_{{ estado.id }}" value="{{ estado.id }}" required>
                     <label class="form-check-label" for="estado_{{ estado.id }}">
                       {{ estado.nombre }}
                     </label>
@@ -531,9 +530,12 @@
                 {% endfor %}
                 <div class="col-12 mt-2">
                   <div class="form-check d-flex align-items-center">
-                    <input class="form-check-input me-2" type="radio" name="estado_reporte" id="estado_otro_radio" value="otro">
+                    <input class="form-check-input me-2" type="radio" name="estado_reporte"
+                           id="estado_otro_radio" value="otro">
                     <label class="form-check-label me-2" for="estado_otro_radio">Otro...</label>
-                    <input type="text" class="form-control me-2" name="estado_otro" id="estado_otro_input" placeholder="Nuevo estado" style="display: none; width: 50%;" autocomplete="off">
+                    <input type="text" class="form-control me-2" name="estado_otro"
+                           id="estado_otro_input" placeholder="Nuevo estado"
+                           style="display: none; width: 50%;" autocomplete="off">
                     <button type="button" class="btn btn-sm btn-success" id="btnAgregarEstado" style="display: none;">+</button>
                   </div>
                 </div>
@@ -542,7 +544,7 @@
   
             <div class="mb-3" id="campoNotas">
               <label class="form-label">Notas:</label>
-              <input type="text" class="form-control" name="notas" placeholder="Escriba una nota...">
+              <input type="text" class="form-control" name="notas" id="inputNotas" placeholder="Escriba una nota...">
             </div>
           </div>
   
@@ -553,7 +555,8 @@
         </form>
       </div>
     </div>
-</div>
+  </div>
+  
   
 <style>
     .icon-copy {
@@ -565,7 +568,6 @@
         background-position: center;
         background-size: contain;
     }
-    
     .icon-copy.active {
         background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24'%3E%3Cpath fill='%230d6efd' d='M7 5C7 3.34 8.34 2 10 2H19C20.65 2 22 3.34 22 5V14C22 15.65 20.65 17 19 17H17V19C17 20.65 15.65 22 14 22H5C3.34 22 2 20.65 2 19V10C2 8.34 3.34 7 5 7H7V5ZM9 7H14C15.65 7 17 8.34 17 10V15H19C19.55 15 20 14.55 20 14V5C20 4.45 19.55 4 19 4H10C9.45 4 9 4.45 9 5V7ZM5 9C4.45 9 4 9.45 4 10V19C4 19.55 4.45 20 5 20H14C14.55 20 15 19.55 15 19V10C15 9.45 14.55 9 14 9H5Z'/%3E%3C/svg%3E");
     }
@@ -1037,45 +1039,68 @@
 
 {% block extra_js %}
 <script>
+    function copiarTextoDeSpan(spanId, inputId, iconoId) {
+        var span = document.getElementById(spanId);
+        var input = document.getElementById(inputId);
+        var icono = document.getElementById(iconoId);
+    
+        if (!span || !input || !icono) return;
+    
+        input.value = span.innerText || span.textContent;
+        input.removeAttribute("hidden");
+        input.select();
+        input.setSelectionRange(0, 99999);
+        document.execCommand("copy");
+        input.setAttribute("hidden", true);
+    
+        icono.classList.add("active");
+    
+        setTimeout(function () {
+            icono.classList.remove("active");
+        }, 2000);
+    }
+    
+    function setTextoYIcono(spanId, iconoId, valor) {
+        const span = document.getElementById(spanId);
+        const icono = document.getElementById(iconoId);
+        const input = document.getElementById(spanId.replace("span", "input")); // usa convención "spanX" → "inputX"
+    
+        const texto = valor && valor.trim() !== "" ? valor : "-";
+        span.innerText = texto;
+    
+        if (icono) icono.style.display = texto !== "-" ? "inline-block" : "none";
+        if (input) input.value = texto;
+    }
+    
     document.addEventListener("DOMContentLoaded", function () {
         const clienteIdInput = document.getElementById("modalClienteId");
         const estadoOtroInput = document.getElementById("estado_otro_input");
         const estadoOtroRadio = document.getElementById("estado_otro_radio");
         const btnAgregarEstado = document.getElementById("btnAgregarEstado");
-
+        const inputNotas = document.getElementById("inputNotas");
+    
         let datosTemporales = {};
-
-        // Función para abrir el modal
+    
         window.abrirModalReportarCliente = function (id, numero, nombre, contacto, telefono, telefono2, correo, direccion, cargo) {
             clienteIdInput.value = id;
-        
-            modalNumeroCliente.innerText = 'Actualizar cliente: ' + numero;
-            document.getElementById("spanNombreCliente").innerText = nombre || "-";
-            document.getElementById("spanContactoCliente").innerText = contacto || "-";
-            modalTelefonoCliente.innerText = telefono || "-";
+            document.getElementById("modalNumeroCliente").innerText = 'Actualizar cliente: ' + numero;
+    
+            setTextoYIcono("spanNombreCliente", "iconoCopiarNombre", nombre);
+            setTextoYIcono("spanContactoCliente", "iconoCopiarContacto", contacto);
+            setTextoYIcono("modalCorreoCliente", "iconoCopiarCorreo", correo);
+    
+            document.getElementById("modalTelefonoCliente").innerText = telefono || "-";
             document.getElementById("modalTelefonoCliente2").innerText = telefono2 || "-";
             document.getElementById("modalCargoCliente").innerText = cargo || "-";
-            document.getElementById("modalCorreoCliente").innerText = correo || "-";
-
-        
-            const correoSpan = document.getElementById("modalCorreoCliente");
-            const iconoCopiar = document.getElementById("iconoCopiarCorreo");
-            correoSpan.innerText = correo || "-";
-            if (correo && correo.trim() !== "" && correo !== "-") {
-                iconoCopiar.style.display = "inline";
-            } else {
-                iconoCopiar.style.display = "none";
-            }
-        
             document.getElementById("modalDireccionCliente").innerText = direccion || "-";
-        
+    
             const datos = datosTemporales[id] || {};
             inputNotas.value = datos.notas || "";
-        
+    
             document.querySelectorAll('input[name="estado_reporte"]').forEach(r => {
                 r.checked = (r.value === datos.estado);
             });
-        
+    
             if (datos.estado === "otro") {
                 estadoOtroInput.style.display = "inline-block";
                 btnAgregarEstado.style.display = "inline-block";
@@ -1088,14 +1113,12 @@
                 estadoOtroInput.value = "";
             }
         };
-        
-
-        // Cambiar el comportamiento cuando el estado "Otro" es seleccionado
+    
         document.querySelectorAll('input[name="estado_reporte"]').forEach(radio => {
             radio.addEventListener("change", function () {
                 const estadoSeleccionado = this.value;
                 const id = clienteIdInput.value;
-
+    
                 if (estadoSeleccionado === "otro") {
                     estadoOtroInput.style.display = "inline-block";
                     btnAgregarEstado.style.display = "inline-block";
@@ -1106,14 +1129,12 @@
                     estadoOtroInput.required = false;
                     estadoOtroInput.value = "";
                 }
-
-                // Almacenar temporalmente los datos del estado seleccionado
+    
                 datosTemporales[id] = datosTemporales[id] || {};
                 datosTemporales[id].estado = estadoSeleccionado;
             });
         });
-
-        // Función para agregar el nuevo estado
+    
         btnAgregarEstado.addEventListener("click", function () {
             const nuevoEstado = estadoOtroInput.value.trim();
             if (!nuevoEstado) {
@@ -1125,7 +1146,7 @@
                 });
                 return;
             }
-
+    
             fetch("{% url 'crear_estado_reporte' %}", {
                 method: "POST",
                 headers: {
@@ -1145,14 +1166,14 @@
                         focusConfirm: false
                     })
                 });
-
+    
                 if (data.success) {
                     const contenedor = document.createElement("div");
                     contenedor.className = "col-6 mb-2";
-
+    
                     const divCheck = document.createElement("div");
                     divCheck.className = "form-check";
-
+    
                     const input = document.createElement("input");
                     input.type = "radio";
                     input.className = "form-check-input";
@@ -1160,18 +1181,18 @@
                     input.id = `estado_${data.id}`;
                     input.value = data.id;
                     input.checked = true;
-
+    
                     const label = document.createElement("label");
                     label.className = "form-check-label";
                     label.htmlFor = `estado_${data.id}`;
                     label.textContent = data.nombre;
-
+    
                     divCheck.appendChild(input);
                     divCheck.appendChild(label);
                     contenedor.appendChild(divCheck);
-
+    
                     document.getElementById("estadoContainer").insertBefore(contenedor, estadoOtroRadio.closest('.col-12'));
-
+    
                     estadoOtroInput.value = "";
                     estadoOtroInput.style.display = "none";
                     estadoOtroInput.required = false;
@@ -1189,11 +1210,11 @@
                 });
             });
         });
-
+    
         document.getElementById("formReportarCliente").addEventListener("submit", function (e) {
             const estadoSeleccionado = document.querySelector('input[name="estado_reporte"]:checked');
             const valorEstado = estadoSeleccionado ? estadoSeleccionado.value : null;
-
+    
             if (valorEstado === "otro") {
                 e.preventDefault();
                 Swal.fire({
@@ -1210,52 +1231,36 @@
                 this.dataset.enviado = "true";
             }
         });
-
+    
         document.querySelectorAll('[data-bs-dismiss="modal"]').forEach(btn => {
             btn.addEventListener("click", function () {
                 const id = clienteIdInput.value;
                 if (id) delete datosTemporales[id];
             });
         });
-
+    
         function setupBusqueda(inputId, tablaId) {
             const input = document.getElementById(inputId);
             const tabla = document.getElementById(tablaId);
             const rows = tabla?.querySelectorAll("tbody tr");
-        
+    
             if (!input || !tabla || !rows) return;
-        
+    
             function filtrar() {
                 const search = input.value.toLowerCase();
                 rows.forEach(row => {
                     const texto = row.textContent.toLowerCase();
-                    const visible = texto.includes(search);
-                    row.style.display = visible ? "" : "none";
+                    row.style.display = texto.includes(search) ? "" : "none";
                 });
             }
-        
-            // Solo busca si se presiona Enter
+    
             input.addEventListener("keyup", function (event) {
                 if (event.key === "Enter") {
                     filtrar();
                 }
             });
-        };
-        
-        window.copiarTexto = function (elementId, icono) {
-            const texto = document.getElementById(elementId).textContent.trim();
-        
-            if (texto && texto !== "-") {
-                navigator.clipboard.writeText(texto).then(() => {
-                    icono.classList.add("active");
-                    setTimeout(() => {
-                        icono.classList.remove("active");
-                    }, 2000);
-                });
-            }
-        }; 
-        
-        // Activar búsqueda según el view_type del tab actual
+        }
+    
         {% if view_type == 'pendientes' %}
             setupBusqueda("searchInputPendientes", "tablaPendientes");
         {% elif view_type == 'seguimiento' %}
@@ -1266,7 +1271,7 @@
             setupBusqueda("searchInputCompletados", "tablaCompletados");
         {% elif view_type == 'actualizados' %}
             setupBusqueda("searchInputActualizados", "tablaActualizados");
-        {% endif %}      
+        {% endif %}
     });
 </script>
 {% endblock %}

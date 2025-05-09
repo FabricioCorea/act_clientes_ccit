@@ -503,7 +503,9 @@ def reportar_cliente(request):
 
     if not cliente_id or not estado_id:
         messages.error(request, "Faltan datos del cliente o estado.")
-        return redirect("clientes")
+        
+        return redirect(request.META.get('HTTP_REFERER', '/'))
+
 
     cliente = get_object_or_404(Cliente, id=cliente_id)
 
@@ -540,7 +542,8 @@ def reportar_cliente(request):
             )
 
             messages.info(request, f"Intento de llamada {cliente.sin_contestar}/{estado.intentos}.")
-            return redirect("clientes")
+            return redirect(request.META.get('HTTP_REFERER', '/'))
+
 
         # Si llega al límite, pasar a "por localizar"
         estado_por_localizar, _ = EstadoReporte.objects.get_or_create(
@@ -579,7 +582,8 @@ def reportar_cliente(request):
             NotaMovimiento.objects.create(movimiento=movimiento, texto=nota_texto)
 
         messages.success(request, "Cliente enviado a colectores.")
-        return redirect("clientes_colectores" if request.user.groups.filter(name="colector_group").exists() else "clientes")
+        return redirect(request.META.get('HTTP_REFERER', '/'))
+
 
     # ------------------------ FORMULARIO ENVIADO ------------------------
     if nombre_estado == "formulario enviado":
@@ -600,7 +604,8 @@ def reportar_cliente(request):
             )
 
             messages.info(request, f"Formulario enviado. Envío {cliente.formulario_sin_contestar}/{estado.intentos}.")
-            return redirect("clientes")
+            return redirect(request.META.get('HTTP_REFERER', '/'))
+
 
         # Si llega al límite, pasar a "formulario sin respuesta"
         estado_sin_respuesta = EstadoReporte.objects.filter(nombre__iexact="formulario sin respuesta").first()
@@ -627,10 +632,12 @@ def reportar_cliente(request):
                 NotaMovimiento.objects.create(movimiento=movimiento, texto=nota_texto)
 
             messages.success(request, "Cliente actualizado con estado Formulario sin respuesta.")
-            return redirect("clientes")
+            return redirect(request.META.get('HTTP_REFERER', '/'))
+
 
         messages.info(request, f"Formulario enviado. Envío {cliente.formulario_sin_contestar}/{estado.intentos}.")
-        return redirect("clientes")
+        return redirect(request.META.get('HTTP_REFERER', '/'))
+
 
     # ------------------------ OTROS ESTADOS ------------------------
     cliente.veces_contactado += 1
@@ -658,7 +665,7 @@ def reportar_cliente(request):
         )
         messages.info(request, "Cliente registrado en seguimiento. Este cliente aún no se actualiza.")
 
-    return redirect("clientes_colectores" if request.user.groups.filter(name="colector_group").exists() else "clientes")
+    return redirect(request.META.get('HTTP_REFERER', '/'))
 
 @login_required
 @require_POST
@@ -669,7 +676,8 @@ def actualizar_estado_cliente(request):
     estado_actualizado = EstadoReporte.objects.filter(nombre__iexact="actualizado").first()
     if not estado_actualizado:
         messages.error(request, "Estado 'Actualizado' no encontrado.")
-        return redirect("clientes_colectores") if request.user.groups.filter(name="colector_group").exists() else redirect("clientes")
+        return redirect(request.META.get('HTTP_REFERER', '/'))
+
 
     cliente.veces_contactado += 1
     cliente.sin_contestar = 0
@@ -684,7 +692,8 @@ def actualizar_estado_cliente(request):
     )
 
     messages.success(request, "Cliente actualizado exitosamente.")
-    return redirect("clientes_colectores") if request.user.groups.filter(name="colector_group").exists() else redirect("clientes")
+    return redirect(request.META.get('HTTP_REFERER', '/'))
+
 
 @login_required
 @require_POST
@@ -1540,7 +1549,8 @@ def asignar_cliente(request):
     cliente.save()
 
     messages.success(request, f"Cliente asignado exitosamente a {usuario.get_full_name()}.")
-    return redirect("gestion")
+    return redirect(request.META.get('HTTP_REFERER', '/'))
+
 
 @login_required
 @require_POST
@@ -1550,14 +1560,14 @@ def asignacion_por_cantidad(request):
 
     if cantidad <= 0 or not usuario_id:
         messages.error(request, "Debe ingresar una cantidad válida y seleccionar un usuario.")
-        return redirect('gestion')
+        return redirect(request.META.get('HTTP_REFERER', '/'))
 
     usuario = get_object_or_404(User, id=usuario_id)
 
     # No se permite asignar a usuarios del grupo colector
     if usuario.groups.filter(name="colector_group").exists():
         messages.error(request, "No se puede asignar clientes a usuarios del grupo 'colector'.")
-        return redirect('gestion')
+        return redirect(request.META.get('HTTP_REFERER', '/'))
 
     # Obtener todos los clientes no asignados
     todos_no_asignados = Cliente.objects.filter(asignado_usuario__isnull=True).order_by('id')
@@ -1565,11 +1575,11 @@ def asignacion_por_cantidad(request):
 
     if total_disponibles == 0:
         messages.warning(request, "No hay clientes disponibles para asignar.")
-        return redirect('gestion')
+        return redirect(request.META.get('HTTP_REFERER', '/'))
 
     if total_disponibles < cantidad:
         messages.warning(request, f"Solo hay {total_disponibles} cliente(s) sin asignar. Ajuste la cantidad.")
-        return redirect('gestion')
+        return redirect(request.META.get('HTTP_REFERER', '/'))
 
     # Obtener solo los primeros `cantidad`
     clientes_a_asignar = todos_no_asignados[:cantidad]
@@ -1583,7 +1593,8 @@ def asignacion_por_cantidad(request):
         cliente.save()
 
     messages.success(request, f"{clientes_a_asignar.count()} clientes asignados a {usuario.get_full_name()}.")
-    return redirect('gestion')
+    return redirect(request.META.get('HTTP_REFERER', '/'))
+
 
 @login_required
 @require_POST
@@ -1597,13 +1608,13 @@ def reasignar_cliente_colector(request):
     # ✅ Solo se permite asignar a usuarios del grupo colector_group
     if not nuevo_usuario.groups.filter(name="colector_group").exists():
         messages.error(request, "Solo se puede asignar a usuarios del grupo 'colector_group'.")
-        return redirect("gestion")
+        return redirect(request.META.get('HTTP_REFERER', '/'))
 
     cliente.asignado_usuario = nuevo_usuario
     cliente.save()
 
     messages.success(request, f"Cliente asignado exitosamente al colector {nuevo_usuario.get_full_name()}.")
-    return redirect("gestion")
+    return redirect(request.META.get('HTTP_REFERER', '/'))
 
 @login_required
 def clientes_colectores(request):
@@ -2206,4 +2217,4 @@ def editar_cliente(request):
     )
 
     messages.success(request, "Cliente actualizado exitosamente.")
-    return redirect('gestion')
+    return redirect(request.META.get('HTTP_REFERER', '/'))
