@@ -50,8 +50,18 @@
                                autocomplete="off">
                         <input type="hidden" name="sin_asignar" value="{{ clientes_sin_asignar.number }}">
                     </form>                    
-                    <button class="btn btn-asignar" data-bs-toggle="modal" data-bs-target="#modalAsignarPorCantidad">
-                        <i class="bi bi-person-lines-fill"></i> Asignar por cantidad
+                    <button class="btn btn-asignar" 
+                            data-bs-toggle="modal" 
+                            data-bs-target="#modalDesasignarPorCantidad"
+                            title="Desasignar clientes por lotes">
+                        <i class="bi bi-person-dash-fill"></i> Desasignar
+                    </button>
+
+                    <button class="btn btn-asignar" 
+                            data-bs-toggle="modal" 
+                            data-bs-target="#modalAsignarPorCantidad"
+                            title="Asignar clientes por lotes">
+                        <i class="bi bi-person-lines-fill"></i> Asignar
                     </button>
                 </div>
                 
@@ -699,6 +709,42 @@
         </div>
     </div>
 </div>
+
+<!-- Modal Desasignar Clientes -->
+<div class="modal fade" id="modalDesasignarPorCantidad" tabindex="-1" aria-labelledby="modalDesasignarLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <form method="POST" action="{% url 'desasignar_por_cantidad' %}">
+        {% csrf_token %}
+        <div class="modal-header">
+          <h5 class="modal-title" id="modalDesasignarLabel">Desasignar clientes</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+        </div>
+        <div class="modal-body">
+          <p>Selecciona un usuario para quitarle clientes:</p>
+          {% for user in usuarios_con_clientes %}
+            <div class="form-check mb-2">
+              <input class="form-check-input" type="radio" name="usuario_id" id="usuario_{{ user.id }}" value="{{ user.id }}" required>
+              <label class="form-check-label" for="usuario_{{ user.id }}">
+                {{ user.get_full_name }} ({{ user.clientes_pendientes_count }} pendientes asignados)
+              </label>
+            </div>
+          {% empty %}
+            <p class="text-danger">No hay usuarios con clientes pendientes asignados.</p>
+          {% endfor %}
+          <div class="mt-3">
+            <label for="cantidad" class="form-label">Cantidad a desasignar:</label>
+            <input type="number" class="form-control" name="cantidad" min="1" required>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-danger">Desasignar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
 <div class="modal fade" id="modalEditarCliente" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">

@@ -31,6 +31,7 @@ urlpatterns = [
     path('gestion/pendientes/', vistasClientes.clientes_pendientes_view, name='clientes_pendientes_gestion'),
     path('gestion/colectores/', vistasClientes.clientes_para_colectores_view, name='clientes_para_colectores_gestion'),
     path('gestion/todos/', vistasClientes.clientes_todos_view, name='clientes_todos_gestion'),
+    path('gestion/desasignacion-cantidad', vistasClientes.desasignar_por_cantidad, name='desasignar_por_cantidad'),
 
 
     path('gestion/asignacion', vistasClientes.asignar_cliente, name='asignacion'),

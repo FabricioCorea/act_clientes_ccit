@@ -947,6 +947,8 @@ def dashboard_reportes(request):
     porcentaje_avance_colector = round((avance_total_colector / clientes_totales_colector) * 100, 2) if clientes_totales_colector else 0
 
     usuarios = User.objects.filter(groups__in=[grupo_estandar, grupo_colector]).distinct()
+    filtro_activo = bool(fecha_inicio or fecha_fin or usuario_id)
+
 
     context = {
         "fecha_inicio": fecha_inicio,
@@ -977,6 +979,7 @@ def dashboard_reportes(request):
         "reportes_colector_por_estado": dict(reportes_colector_por_estado),
         "reportes_colector_por_usuario": dict(reportes_colector_por_usuario),
         "actualizados_colector_por_usuario": dict(actualizados_colector_por_usuario),
+        "filtro_activo": filtro_activo,
     }
 
     return render(request, 'dashboard/dashboard.html', context)
@@ -1025,6 +1028,13 @@ def clientes_sin_asignar_view(request):
         estado_actual__nombre__iexact="actualizado"
     ).distinct()
 
+    estado_pendiente = EstadoReporte.objects.filter(nombre__iexact="pendiente").first()
+
+    usuarios_con_clientes = User.objects.annotate(
+        clientes_pendientes_count=Count('clientes_asignados', filter=Q(clientes_asignados__estado_actual=estado_pendiente))
+    ).filter(clientes_pendientes_count__gt=0)
+
+
     usuarios_no_colectores = User.objects.exclude(groups__name="colector_group").exclude(username="rcoreas").filter(is_active=True)
 
     return render(request, "gestion/gestion.html", {
@@ -1046,6 +1056,7 @@ def clientes_sin_asignar_view(request):
         "count_sin_asignar": clientes_qs.count(),
         "count_todos": Cliente.objects.count(),
         "count_colectores": Cliente.objects.filter(estado_actual__nombre__iexact="por localizar").count(),
+        "usuarios_con_clientes": usuarios_con_clientes,
     })
 
 @login_required
@@ -2217,4 +2228,40 @@ def editar_cliente(request):
     )
 
     messages.success(request, "Cliente actualizado exitosamente.")
+    return redirect(request.META.get('HTTP_REFERER', '/'))
+
+@login_required
+@require_POST
+def desasignar_por_cantidad(request):
+    cantidad = int(request.POST.get('cantidad', 0))
+    usuario_id = request.POST.get('usuario_id')
+
+    if cantidad <= 0 or not usuario_id:
+        messages.error(request, "Debe ingresar una cantidad válida y seleccionar un usuario.")
+        return redirect(request.META.get('HTTP_REFERER', '/'))
+
+    usuario = get_object_or_404(User, id=usuario_id)
+
+    # Obtener clientes pendientes asignados al usuario
+    pendientes = Cliente.objects.filter(
+        asignado_usuario=usuario,
+        estado_actual__id=1  # Estado "pendiente"
+    ).order_by('-id')
+
+    total_pendientes = pendientes.count()
+
+    if total_pendientes == 0:
+        messages.warning(request, "Este usuario no tiene clientes pendientes asignados.")
+        return redirect(request.META.get('HTTP_REFERER', '/'))
+
+    if cantidad > total_pendientes:
+        messages.warning(request, f"Este usuario solo tiene {total_pendientes} cliente(s) pendientes. Ajuste la cantidad.")
+        return redirect(request.META.get('HTTP_REFERER', '/'))
+
+    clientes_a_desasignar = pendientes[:cantidad]
+    for cliente in clientes_a_desasignar:
+        cliente.asignado_usuario = None
+        cliente.save()
+
+    messages.success(request, f"{clientes_a_desasignar.count()} clientes desasignados de {usuario.get_full_name()}.")
     return redirect(request.META.get('HTTP_REFERER', '/'))
