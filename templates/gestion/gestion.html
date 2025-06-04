@@ -520,12 +520,25 @@
                 <h3 class="mb-0">Clientes</h3>
                 <div class="d-flex">
                     <form method="get" class="d-flex" style="gap: 10px;">
+                        <!-- Campo de búsqueda de texto -->
                         <input type="text" name="q" class="search-box"
-                               placeholder="Buscar cliente..."
-                               value="{{ search_query|default:'' }}"
-                               autocomplete="off">
-                        <input type="hidden" name="todos" value="{{ clientes_todos.number }}">
-                    </form>                    
+                            placeholder="Buscar cliente..."
+                            value="{{ search_query|default:'' }}"
+                            autocomplete="off">
+
+                        <!-- Filtro por estado -->
+                        <select name="estado" class="form-select">
+                            <option value="">Todos los estados</option>
+                            {% for estado in estados_disponibles %}
+                                <option value="{{ estado.nombre|lower }}" {% if estado_query == estado.nombre|lower %}selected{% endif %}>
+                                    {{ estado.nombre }}
+                                </option>
+                            {% endfor %}
+                        </select>
+
+                        <!-- Botón para aplicar los filtros -->
+                        <button type="submit" class="btn btn-confirm btn-sm">Filtrar</button>
+                    </form>
                 </div>
             </div>
             <hr>
