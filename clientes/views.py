@@ -909,14 +909,27 @@ def dashboard_reportes(request):
         total_clientes = Cliente.objects.count()
         clientes_asignados = Cliente.objects.filter(asignado_inicial__groups=grupo_estandar).distinct().count()
         clientes_no_asignados = total_clientes - clientes_asignados
-        avance_total = clientes_actualizados + clientes_completados
+        avance_total = clientes_actualizados
         porcentaje_avance = round((avance_total / total_clientes) * 100, 2) if total_clientes else 0
     else:
         total_clientes = Cliente.objects.filter(asignado_usuario__groups=grupo_colector).distinct().count()
         clientes_asignados = Cliente.objects.filter(asignado_usuario__groups=grupo_colector).exclude(asignado_usuario__username="colector").distinct().count()
         clientes_no_asignados = 0  # no usado en template
-        avance_total = clientes_actualizados + clientes_completados
+        avance_total = clientes_actualizados
         porcentaje_avance = round((avance_total / total_clientes) * 100, 2) if total_clientes else 0
+        
+    # Clientes pendientes asignados a usuarios estándar
+    clientes_pendientes_estandar = Cliente.objects.filter(
+        asignado_inicial__groups=grupo_estandar,
+        estado_actual__nombre__iexact="pendiente"  # Usa estado_actual en lugar de estado
+    ).distinct().count()
+
+    # Clientes pendientes asignados a usuarios colector
+    clientes_pendientes_colector = Cliente.objects.filter(
+        asignado_usuario__groups=grupo_colector,
+        estado_actual__nombre__iexact="pendiente"  # Usa estado_actual en lugar de estado
+    ).distinct().count()
+
 
     # === Interacciones solo si grupo == estándar
     if grupo == "estandar":
@@ -975,6 +988,8 @@ def dashboard_reportes(request):
         "clientes_completados_estandar": clientes_completados if grupo == "estandar" else 0,
         "clientes_completados_colector": clientes_completados if grupo == "colector" else 0,
         "clientes_en_seguimiento_estandar": clientes_en_seguimiento if grupo == "estandar" else 0,
+        "clientes_pendientes_estandar": clientes_pendientes_estandar if grupo == "estandar" else 0,
+        "clientes_pendientes_colector": clientes_pendientes_colector if grupo == "colector" else 0,
         "clientes_en_seguimiento_colectores": clientes_en_seguimiento if grupo == "colector" else 0,
         "avance_total_estandar": avance_total if grupo == "estandar" else 0,
         "avance_total_colector": avance_total if grupo == "colector" else 0,
