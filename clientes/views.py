@@ -841,25 +841,18 @@ def dashboard_reportes(request):
     usuario_id = request.GET.get('usuario_id')
     grupo = request.GET.get("grupo", "estandar")
 
-    grupo_estandar = Group.objects.get(name='estandar_group')
-    grupo_colector = Group.objects.get(name='colector_group')
+    grupo_obj = {
+        "estandar": Group.objects.get(name='estandar_group'),
+        "colector": Group.objects.get(name='colector_group'),
+    }
 
-    # Cargar solo usuarios del grupo activo y que tienen movimientos registrados
-    if grupo == "estandar":
-        usuarios = User.objects.filter(
-            groups__name="estandar_group"
-        ).filter(
-            Q(movimientoestado__isnull=False) | Q(historialestadosinmovimiento__isnull=False)
-        ).distinct()
-    else:
-        usuarios = User.objects.filter(
-            groups__name="colector_group"
-        ).exclude(
-            username="colector"
-        ).filter(
-            Q(movimientoestado__isnull=False) | Q(historialestadosinmovimiento__isnull=False)
-        ).distinct()
+    grupo_activo = grupo_obj[grupo]
 
+    usuarios = User.objects.filter(
+        groups=grupo_activo
+    ).exclude(username="colector").filter(
+        Q(movimientoestado__isnull=False) | Q(historialestadosinmovimiento__isnull=False)
+    ).distinct()
 
     movimientos = MovimientoEstado.objects.select_related('cliente', 'estado', 'actualizado_por')
     historial = HistorialEstadoSinMovimiento.objects.select_related('cliente', 'estado', 'actualizado_por')
@@ -876,94 +869,72 @@ def dashboard_reportes(request):
         movimientos = movimientos.filter(actualizado_por__id=usuario_id)
         historial = historial.filter(actualizado_por__id=usuario_id)
 
+    movimientos = movimientos.filter(actualizado_por__groups=grupo_activo, actualizado_por_admin__isnull=True)
+    historial = historial.filter(actualizado_por__groups=grupo_activo, actualizado_por_admin__isnull=True)
+
     estado_pendiente = EstadoReporte.objects.filter(nombre__iexact="pendiente").first()
     estado_actualizado = EstadoReporte.objects.filter(nombre__iexact="actualizado").first()
-    estado_formulario_enviado = EstadoReporte.objects.filter(nombre__iexact="formulario enviado").first()
+    estado_formulario = EstadoReporte.objects.filter(nombre__iexact="formulario enviado").first()
     estados_seguimiento = EstadoReporte.objects.filter(genera_movimiento=False).exclude(nombre__iexact="pendiente")
 
     filtro_activo = bool(fecha_inicio or fecha_fin or usuario_id)
 
-    if grupo == "estandar":
-        movimientos_activos = movimientos.filter(actualizado_por__groups=grupo_estandar, actualizado_por_admin__isnull=True)
-        historial_activo = historial.filter(actualizado_por__groups=grupo_estandar, actualizado_por_admin__isnull=True)
-    else:
-        movimientos_activos = movimientos.filter(actualizado_por__groups=grupo_colector, actualizado_por_admin__isnull=True)
-        historial_activo = historial.filter(actualizado_por__groups=grupo_colector, actualizado_por_admin__isnull=True)
-
-    # === Último movimiento válido por cliente
-    combined = list(chain(movimientos_activos, historial_activo))
+    combined = list(chain(movimientos, historial))
     ultimo_por_cliente = {}
     for r in combined:
         c_id = r.cliente.id
         if c_id not in ultimo_por_cliente or r.fecha_hora > ultimo_por_cliente[c_id].fecha_hora:
             ultimo_por_cliente[c_id] = r
 
-    # === Conteo General
     clientes_contactados = len(ultimo_por_cliente)
-
     clientes_actualizados = sum(1 for r in ultimo_por_cliente.values() if r.estado == estado_actualizado)
     clientes_completados = sum(1 for r in ultimo_por_cliente.values() if r.estado and r.estado.genera_movimiento and r.estado != estado_actualizado)
     clientes_en_seguimiento = sum(1 for r in ultimo_por_cliente.values() if r.estado and not r.estado.genera_movimiento and r.estado != estado_pendiente)
 
     if grupo == "estandar":
         total_clientes = Cliente.objects.count()
-        clientes_asignados = Cliente.objects.filter(asignado_inicial__groups=grupo_estandar).distinct().count()
-        clientes_no_asignados = total_clientes - clientes_asignados
-        avance_total = clientes_actualizados
-        porcentaje_avance = round((avance_total / total_clientes) * 100, 2) if total_clientes else 0
+        clientes_asignados = Cliente.objects.filter(asignado_inicial__groups=grupo_activo).distinct().count()
+        clientes_pendientes = Cliente.objects.filter(
+            asignado_inicial__groups=grupo_activo,
+            estado_actual__nombre__iexact="pendiente"
+        ).distinct().count()
     else:
-        total_clientes = Cliente.objects.filter(asignado_usuario__groups=grupo_colector).distinct().count()
-        clientes_asignados = Cliente.objects.filter(asignado_usuario__groups=grupo_colector).exclude(asignado_usuario__username="colector").distinct().count()
-        clientes_no_asignados = 0  # no usado en template
-        avance_total = clientes_actualizados
-        porcentaje_avance = round((avance_total / total_clientes) * 100, 2) if total_clientes else 0
-        
-    # Clientes pendientes asignados a usuarios estándar
-    clientes_pendientes_estandar = Cliente.objects.filter(
-        asignado_inicial__groups=grupo_estandar,
-        estado_actual__nombre__iexact="pendiente"  # Usa estado_actual en lugar de estado
-    ).distinct().count()
+        total_clientes = Cliente.objects.filter(asignado_usuario__groups=grupo_activo).distinct().count()
+        clientes_asignados = Cliente.objects.filter(
+            asignado_usuario__groups=grupo_activo
+        ).exclude(asignado_usuario__username="colector").distinct().count()
+        clientes_pendientes = Cliente.objects.filter(
+            asignado_usuario__groups=grupo_activo,
+            estado_actual__nombre__iexact="pendiente"
+        ).distinct().count()
 
-    # Clientes pendientes asignados a usuarios colector
-    clientes_pendientes_colector = Cliente.objects.filter(
-        asignado_usuario__groups=grupo_colector,
-        estado_actual__nombre__iexact="pendiente"  # Usa estado_actual en lugar de estado
-    ).distinct().count()
+    porcentaje_avance = round((clientes_actualizados / total_clientes) * 100, 2) if total_clientes else 0
 
-
-    # === Interacciones solo si grupo == estándar
+    total_interacciones = interacciones_seguimiento = interacciones_formulario = interacciones_actualizados = interacciones_completados = 0
     if grupo == "estandar":
-        total_interacciones = sum(
-            c.movimientos.filter(actualizado_por__groups=grupo_estandar, actualizado_por_admin__isnull=True).count() +
-            c.historial_sin_movimiento.filter(actualizado_por__groups=grupo_estandar, actualizado_por_admin__isnull=True).count()
-            for c in Cliente.objects.all()
-        )
-
-        interacciones_seguimiento = movimientos_activos.filter(estado__in=estados_seguimiento).count() + \
-            historial_activo.filter(estado__in=estados_seguimiento).count()
-
-        interacciones_formulario = interacciones_actualizados = interacciones_completados = 0
-        if estado_formulario_enviado:
-            interacciones_formulario = movimientos_activos.filter(estado=estado_formulario_enviado).count() + \
-                historial_activo.filter(estado=estado_formulario_enviado).count()
-
+        total_interacciones = movimientos.count() + historial.count()
+        interacciones_seguimiento = movimientos.filter(estado__in=estados_seguimiento).count() + historial.filter(estado__in=estados_seguimiento).count()
+        if estado_formulario:
+            interacciones_formulario = movimientos.filter(estado=estado_formulario).count() + historial.filter(estado=estado_formulario).count()
         if estado_actualizado:
-            interacciones_actualizados = movimientos_activos.filter(estado=estado_actualizado).count() + \
-                historial_activo.filter(estado=estado_actualizado).count()
+            interacciones_actualizados = movimientos.filter(estado=estado_actualizado).count() + historial.filter(estado=estado_actualizado).count()
+        interacciones_completados = movimientos.filter(estado__genera_movimiento=True).exclude(estado=estado_actualizado).count() + \
+                                    historial.filter(estado__genera_movimiento=True).exclude(estado=estado_actualizado).count()
 
-        interacciones_completados = movimientos_activos.filter(estado__genera_movimiento=True).exclude(estado=estado_actualizado).count() + \
-            historial_activo.filter(estado__genera_movimiento=True).exclude(estado=estado_actualizado).count()
-    else:
-        total_interacciones = interacciones_seguimiento = interacciones_formulario = interacciones_actualizados = interacciones_completados = 0
-
-    # === Tarjetas por estado y usuario
-    reportes_por_estado = defaultdict(int)
+    reportes_finalizados = defaultdict(int)
+    reportes_seguimiento = defaultdict(int)
+    reportes_generales = defaultdict(int)
     reportes_por_usuario = defaultdict(int)
     actualizados_por_usuario = defaultdict(int)
 
     for r in ultimo_por_cliente.values():
         if r.estado:
-            reportes_por_estado[r.estado.nombre] += 1
+            reportes_generales[r.estado.nombre] += 1
+            if grupo == "estandar":
+                if r.estado.genera_movimiento:
+                    reportes_finalizados[r.estado.nombre] += 1
+                else:
+                    reportes_seguimiento[r.estado.nombre] += 1
         if r.actualizado_por:
             nombre = r.actualizado_por.get_full_name()
             reportes_por_usuario[nombre] += 1
@@ -982,17 +953,16 @@ def dashboard_reportes(request):
         "clientes_colector": clientes_contactados if grupo == "colector" else 0,
         "clientes_asignados_estandar": clientes_asignados if grupo == "estandar" else 0,
         "clientes_asignados_colector": clientes_asignados if grupo == "colector" else 0,
-        "clientes_no_asignados_estandar": clientes_no_asignados if grupo == "estandar" else 0,
         "clientes_actualizados_estandar": clientes_actualizados if grupo == "estandar" else 0,
         "clientes_actualizados_colector": clientes_actualizados if grupo == "colector" else 0,
         "clientes_completados_estandar": clientes_completados if grupo == "estandar" else 0,
         "clientes_completados_colector": clientes_completados if grupo == "colector" else 0,
         "clientes_en_seguimiento_estandar": clientes_en_seguimiento if grupo == "estandar" else 0,
-        "clientes_pendientes_estandar": clientes_pendientes_estandar if grupo == "estandar" else 0,
-        "clientes_pendientes_colector": clientes_pendientes_colector if grupo == "colector" else 0,
         "clientes_en_seguimiento_colectores": clientes_en_seguimiento if grupo == "colector" else 0,
-        "avance_total_estandar": avance_total if grupo == "estandar" else 0,
-        "avance_total_colector": avance_total if grupo == "colector" else 0,
+        "clientes_pendientes_estandar": clientes_pendientes if grupo == "estandar" else 0,
+        "clientes_pendientes_colector": clientes_pendientes if grupo == "colector" else 0,
+        "avance_total_estandar": clientes_actualizados if grupo == "estandar" else 0,
+        "avance_total_colector": clientes_actualizados if grupo == "colector" else 0,
         "porcentaje_avance_estandar": porcentaje_avance if grupo == "estandar" else 0,
         "porcentaje_avance_colector": porcentaje_avance if grupo == "colector" else 0,
         "total_interacciones_estandar": total_interacciones,
@@ -1000,10 +970,11 @@ def dashboard_reportes(request):
         "interacciones_estandar_formulario": interacciones_formulario,
         "interacciones_estandar_actualizados": interacciones_actualizados,
         "interacciones_estandar_completados": interacciones_completados,
-        "reportes_estandar_por_estado": dict(reportes_por_estado) if grupo == "estandar" else {},
+        "reportes_estandar_finalizados": dict(reportes_finalizados) if grupo == "estandar" else {},
+        "reportes_estandar_seguimiento": dict(reportes_seguimiento) if grupo == "estandar" else {},
+        "reportes_colector_por_estado": dict(reportes_generales) if grupo == "colector" else {},
         "reportes_estandar_por_usuario": dict(reportes_por_usuario) if grupo == "estandar" else {},
         "actualizados_estandar_por_usuario": dict(actualizados_por_usuario) if grupo == "estandar" else {},
-        "reportes_colector_por_estado": dict(reportes_por_estado) if grupo == "colector" else {},
         "reportes_colector_por_usuario": dict(reportes_por_usuario) if grupo == "colector" else {},
         "actualizados_colector_por_usuario": dict(actualizados_por_usuario) if grupo == "colector" else {},
     }

@@ -78,13 +78,21 @@
                             <td>{{ cliente.estado_actual.nombre }}</td>
                             <td>
                                 <div class="text-center">
-                                    <button class="btn btn-sm btn-reportar"
-                                            data-bs-toggle="modal" 
-                                            data-bs-target="#modalReportarCliente"
-                                            onclick="abrirModalReportarCliente('{{ cliente.id }}', '{{ cliente.numero_cliente }}', '{{ cliente.nombre_cliente }}', '{{ cliente.contacto_cliente }}', '{{ cliente.telefono_cliente|default_if_none:"" }}', '{{ cliente.telefono_dos|default_if_none:"" }}', '{{ cliente.correo|default_if_none:"" }}', '{{ cliente.direccion|default_if_none:"" }}', '{{ cliente.contacto_cargo|default_if_none:"" }}')"
-                                            title="Llamar cliente">
-                                        <i class="bi bi-telephone-fill"></i>
-                                    </button>
+                                    <button class="btn btn-sm btn-reportar btn-abrir-modal"
+                                        data-bs-toggle="modal" 
+                                        data-bs-target="#modalReportarCliente"
+                                        data-id="{{ cliente.id }}"
+                                        data-numero="{{ cliente.numero_cliente }}"
+                                        data-nombre="{{ cliente.nombre_cliente }}"
+                                        data-contacto="{{ cliente.contacto_cliente }}"
+                                        data-telefono="{{ cliente.telefono_cliente|default_if_none:'' }}"
+                                        data-telefono2="{{ cliente.telefono_dos|default_if_none:'' }}"
+                                        data-correo="{{ cliente.correo|default_if_none:'' }}"
+                                        data-direccion="{{ cliente.direccion|default_if_none:'' }}"
+                                        data-cargo="{{ cliente.contacto_cargo|default_if_none:'' }}"
+                                        title="Llamar cliente">
+                                    <i class="bi bi-telephone-fill"></i>
+                                </button>
                                 </div>
                             </td>
                         </tr>
@@ -1071,6 +1079,23 @@
         if (icono) icono.style.display = texto !== "-" ? "inline-block" : "none";
         if (input) input.value = texto;
     }
+    document.querySelectorAll('.btn-abrir-modal').forEach(btn => {
+        btn.addEventListener('click', function () {
+            const dataset = btn.dataset;
+            window.abrirModalReportarCliente(
+                dataset.id,
+                dataset.numero,
+                dataset.nombre,
+                dataset.contacto,
+                dataset.telefono,
+                dataset.telefono2,
+                dataset.correo,
+                dataset.direccion,
+                dataset.cargo
+            );
+        });
+    });
+
     
     document.addEventListener("DOMContentLoaded", function () {
         const clienteIdInput = document.getElementById("modalClienteId");

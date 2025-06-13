@@ -48,19 +48,19 @@
             {% if clientes_totales > 0 %}
             <div class="row justify-content-center">
             <div class="col-md-6">
-                <div class="mb-2 text-center section-label">Avance de Contactados</div>
+                <div class="mb-2 text-center card-title">Avance de Contactados</div>
                 <div class="progress-container js-progress-bar"
-                data-total="{{ clientes_totales }}"
-                data-avance="{{ clientes_estandar }}">
+                    data-total="{{ clientes_totales }}"
+                    data-avance="{{ clientes_estandar }}">
                 <div class="progress-fill"></div>
                 <div class="progress-label"></div>
                 </div>
             </div>
             <div class="col-md-6">
-                <div class="mb-2 text-center section-label">Avance de Actualizados</div>
+                <div class="mb-2 text-center card-title">Avance de Actualizados</div>
                 <div class="progress-container js-progress-bar"
-                data-total="{{ clientes_totales }}"
-                data-avance="{{ avance_total_estandar }}">
+                    data-total="{{ clientes_totales }}"
+                    data-avance="{{ avance_total_estandar }}">
                 <div class="progress-fill"></div>
                 <div class="progress-label"></div>
                 </div>
@@ -72,12 +72,67 @@
         </div>
         {% endif %}
 
-        <!-- Tarjetas Generales ESTÁNDAR -->
+        <!-- Tarjetas Generales -->
         <h4 class="section-label">Porcentaje de Avance</h4>
         <div class="row row-cols-1 row-cols-sm-2 row-cols-lg-5 g-3 justify-content-center">
-            {% include "partials/cards_estandar_generales.html" %}
+            <div class="col">
+            <div class="card text-center">
+                <div class="card-body">
+                <h5 class="card-title">Contactados</h5>
+                {% if filtro_activo %}
+                    <p class="card-text"><span class="badge-totales">{{ clientes_estandar }}</span></p>
+                {% else %}
+                    <p class="card-text"><span class="badge-totales">{{ clientes_estandar }} de {{ clientes_totales }}</span></p>
+                    <span class="porcentaje">{% widthratio clientes_estandar clientes_totales 100 %}%</span>
+                {% endif %}
+                </div>
+            </div>
+            </div>
+
+            {% if not filtro_activo %}
+            <div class="col">
+            <div class="card text-center">
+                <div class="card-body">
+                <h5 class="card-title">Pendientes</h5>
+                <p class="card-text"><span class="badge-totales">{{ clientes_pendientes_estandar }} de {{ clientes_totales }}</span></p>
+                <span class="porcentaje">{% widthratio clientes_pendientes_estandar clientes_totales 100 %}%</span>
+                </div>
+            </div>
+            </div>
+
+            <div class="col">
+            <div class="card text-center">
+                <div class="card-body">
+                <h5 class="card-title">Seguimiento</h5>
+                <p class="card-text"><span class="badge-totales">{{ clientes_en_seguimiento_estandar }} de {{ clientes_totales }}</span></p>
+                <span class="porcentaje">{% widthratio clientes_en_seguimiento_estandar clientes_totales 100 %}%</span>
+                </div>
+            </div>
+            </div>
+
+            <div class="col">
+            <div class="card text-center">
+                <div class="card-body">
+                <h5 class="card-title">Cerrados</h5>
+                <p class="card-text"><span class="badge-totales">{{ clientes_completados_estandar }} de {{ clientes_totales }}</span></p>
+                <span class="porcentaje">{% widthratio clientes_completados_estandar clientes_totales 100 %}%</span>
+                </div>
+            </div>
+            </div>
+
+            <div class="col">
+            <div class="card text-center">
+                <div class="card-body">
+                <h5 class="card-title">Actualizados</h5>
+                <p class="card-text"><span class="badge-totales">{{ clientes_actualizados_estandar }} de {{ clientes_totales }}</span></p>
+                <span class="porcentaje">{% widthratio clientes_actualizados_estandar clientes_totales 100 %}%</span>
+                </div>
+            </div>
+            </div>
+            {% endif %}
         </div>
 
+        <!-- Interacciones -->
         {% if not filtro_activo %}
         <h4 class="section-label">Interacciones</h4>
         <div class="row row-cols-1 row-cols-md-3 g-3 justify-content-center mt-3">
@@ -108,19 +163,52 @@
         </div>
         {% endif %}
 
-        <!-- Contactados por Estado -->
-        <h4 class="section-label">Contactados por Estado</h4>
+        <!-- Contactados por Estado (Grupo Estándar) -->
+
+        <!-- Finalizados -->
+        <h4 class="section-label">En estado finalizado</h4>
         <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 g-3">
-            {% for estado, cantidad in reportes_estandar_por_estado.items %}
+        {% if reportes_estandar_finalizados %}
+            {% for estado, cantidad in reportes_estandar_finalizados.items %}
             <div class="col">
-            <div class="card border-info text-center">
+            <div class="card border-success text-center">
                 <div class="card-body">
                 <h6 class="card-title">{{ estado }}</h6>
-                <p class="card-text">{{ cantidad }}</p>
+                <p class="card-text"><span class="badge-totales">{{ cantidad }}</span></p>
                 </div>
             </div>
             </div>
             {% endfor %}
+        {% else %}
+            <div class="col">
+            <div class="alert alert-light w-100 text-center" role="alert">
+                No hay estados finalizados registrados.
+            </div>
+            </div>
+        {% endif %}
+        </div>
+
+        <!-- En seguimiento -->
+        <h4 class="section-label mt-4">En estado en seguimiento</h4>
+        <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 g-3">
+        {% if reportes_estandar_seguimiento %}
+            {% for estado, cantidad in reportes_estandar_seguimiento.items %}
+            <div class="col">
+            <div class="card border-warning text-center">
+                <div class="card-body">
+                <h6 class="card-title">{{ estado }}</h6>
+                <p class="card-text"><span class="badge-totales">{{ cantidad }}</span></p>
+                </div>
+            </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="col">
+            <div class="alert alert-light w-100 text-center" role="alert">
+                No hay estados en seguimiento registrados.
+            </div>
+            </div>
+        {% endif %}
         </div>
 
         <!-- Contactados por Usuario -->
@@ -131,7 +219,7 @@
             <div class="card border-success text-center">
                 <div class="card-body">
                 <h6 class="card-title">{{ usuario }}</h6>
-                <p class="card-text">{{ cantidad }}</p>
+                <p class="card-text"><span class="badge-totales">{{ cantidad }}</span></p>
                 </div>
             </div>
             </div>
@@ -146,7 +234,7 @@
             <div class="card border-warning text-center">
                 <div class="card-body">
                 <h6 class="card-title">{{ usuario }}</h6>
-                <p class="card-text">{{ cantidad }}</p>
+                <p class="card-text"><span class="badge-totales">{{ cantidad }}</span></p>
                 </div>
             </div>
             </div>
@@ -154,188 +242,165 @@
         </div>
         </div>
 
-       <!-- TAB COLECTORES -->
+        <!-- TAB COLECTORES -->
         <div class="tab-pane fade" id="colectores-tab-pane" role="tabpanel" aria-labelledby="colectores-tab">
-            <form method="get" class="row g-3 mb-4">
-                <input type="hidden" name="grupo" value="colector">
-                <div class="col-md-3">
-                    <label for="fecha_inicio_colector" class="form-label">Fecha inicio:</label>
-                    <input type="date" name="fecha_inicio" id="fecha_inicio_colector" class="form-control" value="{{ fecha_inicio|default:'' }}">
+        <form method="get" class="row g-3 mb-4">
+            <input type="hidden" name="grupo" value="colector">
+            <div class="col-md-3">
+            <label for="fecha_inicio_colector" class="form-label">Fecha inicio:</label>
+            <input type="date" name="fecha_inicio" id="fecha_inicio_colector" class="form-control" value="{{ fecha_inicio|default:'' }}">
+            </div>
+            <div class="col-md-3">
+            <label for="fecha_fin_colector" class="form-label">Fecha fin:</label>
+            <input type="date" name="fecha_fin" id="fecha_fin_colector" class="form-control" value="{{ fecha_fin|default:'' }}">
+            </div>
+            <div class="col-md-4">
+            <label for="usuario_colector" class="form-label">Usuario:</label>
+            <select name="usuario_id" id="usuario_colector" class="form-select">
+                <option value="">-- Todos --</option>
+                {% for u in usuarios %}
+                <option value="{{ u.id }}" {% if usuario_id == u.id|stringformat:"s" %}selected{% endif %}>{{ u.get_full_name }}</option>
+                {% endfor %}
+            </select>
+            </div>
+            <div class="col-md-2 align-self-end">
+            <button type="submit" class="btn btn-confirm w-100">Filtrar</button>
+            </div>
+        </form>
+
+        {% if not filtro_activo %}
+        <div class="mb-4">
+            {% if clientes_totales_colector > 0 %}
+            <div class="row justify-content-center">
+            <div class="col-md-6">
+                <div class="mb-2 text-center card-title">Avance de Contactados</div>
+                <div class="progress-container js-progress-bar"
+                data-total="{{ clientes_totales_colector }}"
+                data-avance="{{ clientes_colector }}">
+                <div class="progress-fill"></div>
+                <div class="progress-label"></div>
                 </div>
-                <div class="col-md-3">
-                    <label for="fecha_fin_colector" class="form-label">Fecha fin:</label>
-                    <input type="date" name="fecha_fin" id="fecha_fin_colector" class="form-control" value="{{ fecha_fin|default:'' }}">
+            </div>
+            <div class="col-md-6">
+                <div class="mb-2 text-center card-title">Avance Actual</div>
+                <div class="progress-container js-progress-bar"
+                data-total="{{ clientes_totales_colector }}"
+                data-avance="{{ avance_total_colector }}">
+                <div class="progress-fill"></div>
+                <div class="progress-label"></div>
                 </div>
-                <div class="col-md-4">
-                    <label for="usuario_colector" class="form-label">Usuario:</label>
-                    <select name="usuario_id" id="usuario_colector" class="form-select">
-                        <option value="">-- Todos --</option>
-                        {% for u in usuarios %}
-                            <option value="{{ u.id }}" {% if usuario_id == u.id|stringformat:"s" %}selected{% endif %}>
-                                {{ u.get_full_name }}
-                            </option>
-                        {% endfor %}
-                    </select>
+            </div>
+            </div>
+            {% else %}
+            <p class="text-muted text-center">No hay clientes disponibles para calcular avance.</p>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        <!-- Tarjetas Generales -->
+        <h4 class="section-label">Porcentaje de Avance</h4>
+        <div class="row row-cols-1 row-cols-sm-2 row-cols-lg-5 g-3 justify-content-center">
+            <div class="col">
+            <div class="card text-center">
+                <div class="card-body">
+                <h5 class="card-title">Contactados</h5>
+                {% if filtro_activo %}
+                    <p class="card-text"><span class="badge-totales">{{ clientes_colector }}</span></p>
+                {% else %}
+                    <p class="card-text"><span class="badge-totales">{{ clientes_colector }} de {{ clientes_totales_colector }}</span></p>
+                    <span class="porcentaje">{% widthratio clientes_colector clientes_totales_colector 100 %}%</span>
+                {% endif %}
                 </div>
-                <div class="col-md-2 align-self-end">
-                    <button type="submit" class="btn btn-confirm w-100">Filtrar</button>
-                </div>
-            </form>
+            </div>
+            </div>
 
             {% if not filtro_activo %}
-            <div class="mb-4">
-                {% if clientes_totales_colector > 0 %}
-                <div class="row justify-content-center">
-                    <div class="col-md-6">
-                        <div class="mb-2 text-center" style="font-weight: bold; color: #184072;">Avance de Contactados</div>
-                        <div class="progress-container js-progress-bar"
-                            data-total="{{ clientes_totales_colector }}"
-                            data-avance="{{ clientes_colector }}">
-                            <div class="progress-fill"></div>
-                            <div class="progress-label"></div>
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="mb-2 text-center" style="font-weight: bold; color: #184072;">Avance Actual</div>
-                        <div class="progress-container js-progress-bar"
-                            data-total="{{ clientes_totales_colector }}"
-                            data-avance="{{ avance_total_colector }}">
-                            <div class="progress-fill"></div>
-                            <div class="progress-label"></div>
-                        </div>
-                    </div>
+            <div class="col">
+            <div class="card text-center">
+                <div class="card-body">
+                <h5 class="card-title">Pendientes</h5>
+                <p class="card-text"><span class="badge-totales">{{ clientes_pendientes_colector }} de {{ clientes_totales_colector }}</span></p>
+                <span class="porcentaje">{% widthratio clientes_pendientes_colector clientes_totales_colector 100 %}%</span>
                 </div>
-                {% else %}
-                <p class="text-muted text-center">No hay clientes disponibles para calcular avance.</p>
-                {% endif %}
+            </div>
+            </div>
+
+            <div class="col">
+            <div class="card text-center">
+                <div class="card-body">
+                <h5 class="card-title">Seguimiento</h5>
+                <p class="card-text"><span class="badge-totales">{{ clientes_en_seguimiento_colectores }} de {{ clientes_totales_colector }}</span></p>
+                <span class="porcentaje">{% widthratio clientes_en_seguimiento_colectores clientes_totales_colector 100 %}%</span>
+                </div>
+            </div>
+            </div>
+
+            <div class="col">
+            <div class="card text-center">
+                <div class="card-body">
+                <h5 class="card-title">Cerrados</h5>
+                <p class="card-text"><span class="badge-totales">{{ clientes_completados_colector }} de {{ clientes_totales_colector }}</span></p>
+                <span class="porcentaje">{% widthratio clientes_completados_colector clientes_totales_colector 100 %}%</span>
+                </div>
+            </div>
+            </div>
+
+            <div class="col">
+            <div class="card text-center">
+                <div class="card-body">
+                <h5 class="card-title">Actualizados</h5>
+                <p class="card-text"><span class="badge-totales">{{ clientes_actualizados_colector }} de {{ clientes_totales_colector }}</span></p>
+                <span class="porcentaje">{% widthratio clientes_actualizados_colector clientes_totales_colector 100 %}%</span>
+                </div>
+            </div>
             </div>
             {% endif %}
+        </div>
 
-            <!-- Tarjetas Generales COLECTORES -->
-            <div class="row row-cols-5 g-4 justify-content-center">
-                <div class="col">
-                    <div class="card shadow border-0 text-center">
-                        <div class="card-body">
-                            <h5 class="card-title">Contactados</h5>
-                            <p class="card-text fs-4">
-                                <span class="badge-totales">
-                                    {{ clientes_colector }} de {{ clientes_totales_colector }}
-                                    {% if clientes_totales_colector > 0 %}
-                                        ({% widthratio clientes_colector clientes_totales_colector 100 %}%)
-                                    {% endif %}
-                                </span>
-                            </p>
-                        </div>
-                    </div>
+        <!-- Contactados por Estado -->
+        <h4 class="section-label">Contactados por Estado</h4>
+        <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 g-3">
+            {% for estado, cantidad in reportes_colector_por_estado.items %}
+            <div class="col">
+            <div class="card border-info text-center">
+                <div class="card-body">
+                <h6 class="card-title">{{ estado }}</h6>
+                <p class="card-text"><span class="badge-totales">{{ cantidad }}</span></p>
                 </div>
-                {% if not filtro_activo %}
-                <div class="col">
-                    <div class="card shadow border-0 text-center">
-                        <div class="card-body">
-                            <h5 class="card-title">Pendientes</h5>
-                            <p class="card-text fs-4">
-                                <span class="badge-totales">
-                                    {{ clientes_pendientes_colector }} de {{ clientes_totales_colector }}
-                                    {% if clientes_totales_colector > 0 %}
-                                        ({% widthratio clientes_pendientes_colector clientes_totales_colector 100 %}%)
-                                    {% endif %}
-                                </span>
-                            </p>
-                        </div>
-                    </div>
-                </div>
-                <div class="col">
-                    <div class="card shadow border-0 text-center">
-                        <div class="card-body">
-                            <h5 class="card-title">Seguimiento</h5>
-                            <p class="card-text fs-4">
-                                <span class="badge-totales">
-                                    {{ clientes_en_seguimiento_colectores }} de {{ clientes_totales_colector }}
-                                    {% if clientes_totales_colector > 0 %}
-                                        ({% widthratio clientes_en_seguimiento_colectores clientes_totales_colector 100 %}%)
-                                    {% endif %}
-                                </span>
-                            </p>
-                        </div>
-                    </div>
-                </div>
-                <div class="col">
-                    <div class="card shadow border-0 text-center">
-                        <div class="card-body">
-                            <h5 class="card-title">Cerrados</h5>
-                            <p class="card-text fs-4">
-                                <span class="badge-totales">
-                                    {{ clientes_completados_colector }} de {{ clientes_totales_colector }}
-                                    {% if clientes_totales_colector > 0 %}
-                                        ({% widthratio clientes_completados_colector clientes_totales_colector 100 %}%)
-                                    {% endif %}
-                                </span>
-                            </p>
-                        </div>
-                    </div>
-                </div>
-                <div class="col">
-                    <div class="card shadow border-0 text-center">
-                        <div class="card-body">
-                            <h5 class="card-title">Actualizados</h5>
-                            <p class="card-text fs-4">
-                                <span class="badge-totales">
-                                    {{ clientes_actualizados_colector }} de {{ clientes_totales_colector }}
-                                    {% if clientes_totales_colector > 0 %}
-                                        ({% widthratio clientes_actualizados_colector clientes_totales_colector 100 %}%)
-                                    {% endif %}
-                                </span>
-                            </p>
-                        </div>
-                    </div>
-                </div>
-                {% endif %}
             </div>
+            </div>
+            {% endfor %}
+        </div>
 
-            <!-- Tarjetas por Estado -->
-            <h4 class="mt-5 mb-3">Contactados por Estado</h4>
-            <div class="row g-3">
-                {% for estado, cantidad in reportes_colector_por_estado.items %}
-                <div class="col-md-3">
-                    <div class="card border-info">
-                        <div class="card-body text-center">
-                            <h6 class="card-title">{{ estado }}</h6>
-                            <p class="card-text fs-4">{{ cantidad }}</p>
-                        </div>
-                    </div>
+        <!-- Contactados por Usuario -->
+        <h4 class="section-label">Contactados por Usuario</h4>
+        <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 g-3">
+            {% for usuario, cantidad in reportes_colector_por_usuario.items %}
+            <div class="col">
+            <div class="card border-success text-center">
+                <div class="card-body">
+                <h6 class="card-title">{{ usuario }}</h6>
+                <p class="card-text"><span class="badge-totales">{{ cantidad }}</span></p>
                 </div>
-                {% endfor %}
             </div>
+            </div>
+            {% endfor %}
+        </div>
 
-            <!-- Tarjetas por Usuario -->
-            <h4 class="mt-5 mb-3">Contactados por Usuario</h4>
-            <div class="row g-3">
-                {% for usuario, cantidad in reportes_colector_por_usuario.items %}
-                <div class="col-md-3">
-                    <div class="card border-success">
-                        <div class="card-body text-center">
-                            <h6 class="card-title">{{ usuario }}</h6>
-                            <p class="card-text fs-4">{{ cantidad }}</p>
-                        </div>
-                    </div>
+        <!-- Clientes actualizados por Usuario -->
+        <h4 class="section-label">Clientes actualizados por Usuario</h4>
+        <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 g-3">
+            {% for usuario, cantidad in actualizados_colector_por_usuario.items %}
+            <div class="col">
+            <div class="card border-warning text-center">
+                <div class="card-body">
+                <h6 class="card-title">{{ usuario }}</h6>
+                <p class="card-text"><span class="badge-totales">{{ cantidad }}</span></p>
                 </div>
-                {% endfor %}
             </div>
-
-            <!-- Actualizados por Usuario -->
-            <h4 class="mt-5 mb-3">Clientes actualizados por Usuario</h4>
-            <div class="row g-3">
-                {% for usuario, cantidad in actualizados_colector_por_usuario.items %}
-                <div class="col-md-3">
-                    <div class="card border-warning">
-                        <div class="card-body text-center">
-                            <h6 class="card-title">{{ usuario }}</h6>
-                            <p class="card-text fs-4">{{ cantidad }}</p>
-                        </div>
-                    </div>
-                </div>
-                {% endfor %}
             </div>
+            {% endfor %}
+        </div>
         </div>
 
     </div>
@@ -448,14 +513,15 @@
         border-radius: 25px;
         font-size: clamp(0.95rem, 1.7vw, 1.15rem);
         min-width: 100px;
+        white-space: nowrap; /* 👈 evita el salto de línea */
     }
 
     .porcentaje {
         display: block;
-        font-size: clamp(0.9rem, 1.6vw, 1.1rem);
+        font-size: clamp(0.6rem, 1.1vw, 0.95rem); /* más pequeño pero no micro */
         color: #000000;
         margin-top: 0.2rem;
-        font-weight: 500;
+        font-weight: 600; /* negrita sutil */
     }
 
     .section-label {
@@ -499,7 +565,7 @@
         align-items: center;
         justify-content: center;
         pointer-events: none;
-        font-size: clamp(1rem, 2.5vw, 1.3rem); /* Más grande */
+        font-size: clamp(0.9rem, 1.8vw, 1.1rem);
     }
 
     /* Responsive Layout */
@@ -524,8 +590,6 @@
         }
     }
 </style>
-
-
 
 <script>
     document.addEventListener("DOMContentLoaded", function () {
