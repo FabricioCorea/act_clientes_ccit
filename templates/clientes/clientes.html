@@ -137,7 +137,7 @@
 
                         <select name="estado" class="form-select">
                             <option value="">Todos En Seguimiento</option>
-                            {% for estado in estado_reporte %}
+                            {% for estado in estado_reporte_filtro %}
                                 <option value="{{ estado.nombre|lower }}" {% if estado_query == estado.nombre|lower %}selected{% endif %}>
                                     {{ estado.nombre }}
                                 </option>

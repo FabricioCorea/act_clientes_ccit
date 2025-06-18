@@ -192,13 +192,19 @@ def clientes_seguimiento(request):
         (Q(estado_actual__nombre__iexact="actualizado") & Q(primer_usuario_id=usuario.id) & ~Q(primer_estado_nombre__iexact="actualizado"))
     )
 
-    estados_reporte = EstadoReporte.objects.filter(
+    estados_reporte_filtro = EstadoReporte.objects.filter(
         id__in=Cliente.objects.filter(
             asignado_usuario=usuario,
             estado_actual__in=estados_seguimiento
         ).values_list('estado_actual', flat=True).distinct()
     )
 
+    estados_reporte = EstadoReporte.objects.filter(estado="activo") \
+        .exclude(nombre__iexact="pendiente") \
+        .exclude(nombre__iexact="no localizado") \
+        .exclude(nombre__iexact="por localizar") \
+        .exclude(nombre__iexact="formulario sin respuesta") \
+        .exclude(nombre__iexact="completado")
 
     # -------- Clientes actualizados hoy por el usuario ----------
     actualizados_hoy_qs = Cliente.objects.filter(
@@ -221,6 +227,7 @@ def clientes_seguimiento(request):
     return render(request, 'clientes/clientes.html', {
         "clientes_seguimiento": clientes_seguimiento,
         "estado_reporte": estados_reporte,
+        "estado_reporte_filtro": estados_reporte_filtro,
         "estado_seguimiento": EstadoReporte.objects.filter(nombre__iexact="formulario enviado").first(),
         "view_type": "seguimiento",
         "search_query": search_query,
@@ -236,6 +243,7 @@ def clientes_seguimiento(request):
         "count_sin_actualizar": clientes_sin_actualizar_qs.count(),
         "count_actualizados_hoy": actualizados_hoy_qs.count() + clientes_sin_actualizar_hoy_qs.count(),
     })
+
 @login_required
 def clientes_sin_contestar(request):
     hoy = timezone.localdate() 
@@ -863,6 +871,8 @@ def dashboard_reportes(request):
     movimientos = MovimientoEstado.objects.select_related('cliente', 'estado', 'actualizado_por')
     historial = HistorialEstadoSinMovimiento.objects.select_related('cliente', 'estado', 'actualizado_por')
 
+    filtro_activo = bool(fecha_inicio or fecha_fin or usuario_id)
+
     if fecha_inicio:
         fecha_inicio_dt = make_aware(datetime.combine(parse_date(fecha_inicio), datetime.min.time()))
         movimientos = movimientos.filter(fecha_hora__gte=fecha_inicio_dt)
@@ -883,10 +893,9 @@ def dashboard_reportes(request):
     estado_formulario = EstadoReporte.objects.filter(nombre__iexact="formulario enviado").first()
     estados_seguimiento = EstadoReporte.objects.filter(genera_movimiento=False).exclude(nombre__iexact="pendiente")
 
-    filtro_activo = bool(fecha_inicio or fecha_fin or usuario_id)
-
     combined = list(chain(movimientos, historial))
     ultimo_por_cliente = {}
+
     for r in combined:
         c_id = r.cliente.id
         if c_id not in ultimo_por_cliente or r.fecha_hora > ultimo_por_cliente[c_id].fecha_hora:
@@ -986,7 +995,6 @@ def dashboard_reportes(request):
     }
 
     return render(request, 'dashboard/dashboard.html', context)
-
 @login_required
 def clientes_sin_asignar_view(request):
     usuario = request.user
