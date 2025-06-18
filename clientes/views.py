@@ -24,6 +24,7 @@ from collections import defaultdict
 from django.core.paginator import Paginator
 from django.db import transaction
 from itertools import chain
+from django.db.models.functions import Coalesce, Greatest
 
 
 
@@ -130,7 +131,7 @@ def clientes_pendientes(request):
 
 @login_required
 def clientes_seguimiento(request):
-    hoy = timezone.localdate() 
+    hoy = timezone.localdate()
     usuario = request.user
 
     if not usuario.groups.filter(name="estandar_group").exists():
@@ -138,18 +139,27 @@ def clientes_seguimiento(request):
         return redirect("login")
 
     search_query = request.GET.get("q", "").strip()
+    estado_query = request.GET.get("estado", "").strip().lower()
 
-    # Estados considerados como seguimiento: genera_movimiento=False y no están en excluidos
+    # Estados considerados como seguimiento
     estados_seguimiento = EstadoReporte.objects.filter(
         genera_movimiento=False
     ).exclude(nombre__iexact="pendiente").exclude(nombre__iexact="no contestó")
 
-    # Clientes en seguimiento por esos estados
+    # Subquery: última fecha del historial sin movimiento por cliente
+    subquery_ultima_historial = HistorialEstadoSinMovimiento.objects.filter(
+        cliente=OuterRef('pk')
+    ).order_by('-fecha_hora').values('fecha_hora')[:1]
+
+    # Query principal de clientes en seguimiento
     clientes_seguimiento_qs = Cliente.objects.filter(
         asignado_usuario=usuario,
         estado_actual__in=estados_seguimiento
+    ).annotate(
+        ultima_fecha_hist=Subquery(subquery_ultima_historial, output_field=DateTimeField())
     )
 
+    # Filtro por búsqueda
     if search_query:
         clientes_seguimiento_qs = clientes_seguimiento_qs.filter(
             Q(nombre_cliente__icontains=search_query) |
@@ -157,6 +167,14 @@ def clientes_seguimiento(request):
             Q(contacto_cliente__icontains=search_query)
         )
 
+    # Filtro por estado
+    if estado_query:
+        clientes_seguimiento_qs = clientes_seguimiento_qs.filter(estado_actual__nombre__iexact=estado_query)
+
+    # Ordenar por la última fecha del historial
+    clientes_seguimiento_qs = clientes_seguimiento_qs.order_by('-ultima_fecha_hist')
+
+    # Paginación
     clientes_seguimiento = paginar_queryset(request, clientes_seguimiento_qs, 'seguimiento')
 
     # -------- Cálculo de clientes sin actualizar ----------
@@ -174,13 +192,14 @@ def clientes_seguimiento(request):
         (Q(estado_actual__nombre__iexact="actualizado") & Q(primer_usuario_id=usuario.id) & ~Q(primer_estado_nombre__iexact="actualizado"))
     )
 
-    estados_reporte = EstadoReporte.objects.filter(estado="activo") \
-        .exclude(nombre__iexact="pendiente") \
-        .exclude(nombre__iexact="no localizado") \
-        .exclude(nombre__iexact="por localizar") \
-        .exclude(nombre__iexact="formulario sin respuesta") \
-        .exclude(nombre__iexact="completado")
-    
+    estados_reporte = EstadoReporte.objects.filter(
+        id__in=Cliente.objects.filter(
+            asignado_usuario=usuario,
+            estado_actual__in=estados_seguimiento
+        ).values_list('estado_actual', flat=True).distinct()
+    )
+
+
     # -------- Clientes actualizados hoy por el usuario ----------
     actualizados_hoy_qs = Cliente.objects.filter(
         estado_actual__nombre__iexact="actualizado",
@@ -191,8 +210,8 @@ def clientes_seguimiento(request):
 
     clientes_sin_actualizar_hoy_qs = Cliente.objects.annotate(
         tiene_movimiento_usuario=Exists(movimientos_usuario),
-        primer_usuario_id=primer_movimiento_usuario,
-        primer_estado_nombre=primer_movimiento_estado
+        primer_usuario_id=primer_movimiento_qs.values('actualizado_por')[:1],
+        primer_estado_nombre=primer_movimiento_qs.values('estado__nombre')[:1]
     ).filter(
         Q(movimientos__fecha_hora__date=hoy),
         (Q(tiene_movimiento_usuario=True) & ~Q(estado_actual__nombre__iexact="actualizado")) |
@@ -205,6 +224,7 @@ def clientes_seguimiento(request):
         "estado_seguimiento": EstadoReporte.objects.filter(nombre__iexact="formulario enviado").first(),
         "view_type": "seguimiento",
         "search_query": search_query,
+        "estado_query": estado_query,
         "count_pendientes": Cliente.objects.filter(asignado_usuario=usuario, estado_actual__nombre__iexact="pendiente").count(),
         "count_seguimiento": clientes_seguimiento_qs.count(),
         "count_no_contesto": Cliente.objects.filter(asignado_usuario=usuario, estado_actual__nombre__iexact="no contestó").count(),
@@ -216,7 +236,6 @@ def clientes_seguimiento(request):
         "count_sin_actualizar": clientes_sin_actualizar_qs.count(),
         "count_actualizados_hoy": actualizados_hoy_qs.count() + clientes_sin_actualizar_hoy_qs.count(),
     })
-
 @login_required
 def clientes_sin_contestar(request):
     hoy = timezone.localdate() 
@@ -735,47 +754,38 @@ def clientes_reportados(request):
     user = request.user
     grupos = user.groups.values_list('name', flat=True)
     search_query = request.GET.get('q', '').strip()
+    estado_query = request.GET.get('estado', '').strip().lower()
+    fecha_inicio = parse_date(request.GET.get('fecha_inicio', ''))
+    fecha_fin = parse_date(request.GET.get('fecha_fin', ''))
 
-    # Base query de clientes con historial o movimientos
-    clientes_reportados_query = Cliente.objects.filter(
-        Q(Exists(MovimientoEstado.objects.filter(cliente=OuterRef('pk')))) |
-        Q(Exists(HistorialEstadoSinMovimiento.objects.filter(cliente=OuterRef('pk'))))
-    ).prefetch_related(
-        'movimientos__notas',
-        'historial_sin_movimiento',
-        'asignado_usuario',
-        'asignado_inicial',
-        'estado_actual'
+    subquery_ultima_fecha_mov = MovimientoEstado.objects.filter(cliente=OuterRef('pk')).order_by('-fecha_hora').values('fecha_hora')[:1]
+    subquery_ultima_fecha_hist = HistorialEstadoSinMovimiento.objects.filter(cliente=OuterRef('pk')).order_by('-fecha_hora').values('fecha_hora')[:1]
+
+    clientes_reportados_query = Cliente.objects.prefetch_related(
+        'movimientos__notas', 'historial_sin_movimiento', 'asignado_usuario', 'asignado_inicial', 'estado_actual'
     ).annotate(
-        ultima_fecha=Max(
-            Case(
-                When(movimientos__fecha_hora__isnull=False, then='movimientos__fecha_hora'),
-                default=Value(None),
-                output_field=DateTimeField()
-            )
+        ultima_fecha_mov=Subquery(subquery_ultima_fecha_mov, output_field=DateTimeField()),
+        ultima_fecha_hist=Subquery(subquery_ultima_fecha_hist, output_field=DateTimeField()),
+        ultima_fecha=Greatest(
+            Coalesce(Subquery(subquery_ultima_fecha_mov, output_field=DateTimeField()), Value('1900-01-01', output_field=DateTimeField())),
+            Coalesce(Subquery(subquery_ultima_fecha_hist, output_field=DateTimeField()), Value('1900-01-01', output_field=DateTimeField()))
         )
     )
 
-    # Filtrar por grupo
     if "super_admin" in grupos or "admin_group" in grupos:
-        clientes_filtrados = clientes_reportados_query
-
-    elif "estandar_group" in grupos:
         clientes_filtrados = clientes_reportados_query.filter(
-            asignado_inicial=user
-        ).distinct()
-
-    elif "colector_group" in grupos:
+            Q(Exists(MovimientoEstado.objects.filter(cliente=OuterRef('pk')))) |
+            Q(Exists(HistorialEstadoSinMovimiento.objects.filter(cliente=OuterRef('pk'))))
+        )
+    elif "estandar_group" in grupos or "colector_group" in grupos:
         clientes_filtrados = clientes_reportados_query.filter(
-            Q(movimientos__actualizado_por=user) |
-            Q(historial_sin_movimiento__actualizado_por=user)
-        ).distinct()
-
+            Q(Exists(MovimientoEstado.objects.filter(cliente=OuterRef('pk'), actualizado_por=user))) |
+            Q(Exists(HistorialEstadoSinMovimiento.objects.filter(cliente=OuterRef('pk'), actualizado_por=user)))
+        )
     else:
         messages.error(request, "Acceso no permitido.")
         return redirect("inicio")
 
-    # Búsqueda
     if search_query:
         clientes_filtrados = clientes_filtrados.filter(
             Q(nombre_cliente__icontains=search_query) |
@@ -783,49 +793,45 @@ def clientes_reportados(request):
             Q(contacto_cliente__icontains=search_query)
         )
 
-    # Ordenar por la fecha más reciente
-    clientes_filtrados = clientes_filtrados.order_by('-ultima_fecha')
+    if estado_query:
+        clientes_filtrados = clientes_filtrados.filter(estado_actual__nombre__iexact=estado_query)
 
-    # Paginación
-    clientes_paginados = paginar_queryset(request, clientes_filtrados, 'reportados')
-
-    # Procesar movimientos por cliente
-    for cliente in clientes_paginados:
-        movimientos_normales = [
-            {"obj": m, "tipo": "con_movimiento"} for m in cliente.movimientos.all()
-        ]
-        movimientos_historial = [
-            {"obj": h, "tipo": "sin_movimiento"}
-            for h in cliente.historial_sin_movimiento.all()
-            if not h.genera_movimiento
-        ]
-
-        todos_movimientos = sorted(
-            movimientos_normales + movimientos_historial,
-            key=lambda x: x["obj"].fecha_hora,
-            reverse=True
+    if fecha_inicio and fecha_fin:
+        clientes_filtrados = clientes_filtrados.filter(
+            ultima_fecha__date__range=(fecha_inicio, fecha_fin)
         )
 
-        movimientos_sin_admin = [
-            m for m in todos_movimientos
-            if getattr(m["obj"], "actualizado_por_admin", None) is None
-        ]
+    clientes_filtrados = clientes_filtrados.order_by('-ultima_fecha')
+    clientes_paginados = paginar_queryset(request, clientes_filtrados, 'reportados')
+
+    for cliente in clientes_paginados:
+        movimientos_normales = [{"obj": m, "tipo": "con_movimiento"} for m in cliente.movimientos.all()]
+        movimientos_historial = [{"obj": h, "tipo": "sin_movimiento"} for h in cliente.historial_sin_movimiento.all() if not h.genera_movimiento]
+        todos_movimientos = sorted(movimientos_normales + movimientos_historial, key=lambda x: x["obj"].fecha_hora, reverse=True)
+        movimientos_sin_admin = [m for m in todos_movimientos if getattr(m["obj"], "actualizado_por_admin", None) is None]
 
         cliente.todos_los_movimientos = todos_movimientos
         cliente.movimientos_sin_admin = movimientos_sin_admin
-
         cliente.ultimo_movimiento = cliente.movimientos.order_by('-fecha_hora').first()
-        cliente.reportado_por = (
-            cliente.todos_los_movimientos[0]["obj"].actualizado_por
-            if cliente.todos_los_movimientos else None
-        )
+        cliente.reportado_por = cliente.todos_los_movimientos[0]["obj"].actualizado_por if cliente.todos_los_movimientos else None
+
+    # Solo estados usados actualmente
+    estados_disponibles = EstadoReporte.objects.filter(
+        id__in=Cliente.objects.values_list('estado_actual', flat=True).distinct()
+    ).exclude(nombre__iexact="pendiente")
+
 
     return render(request, 'clientes/clientes_reportados.html', {
         "clientes": clientes_paginados,
         "view_type": "reportados",
         "search_query": search_query,
+        "estado_query": estado_query,
+        "fecha_inicio": fecha_inicio,
+        "fecha_fin": fecha_fin,
+        "estados_disponibles": estados_disponibles,
         "count_reportados": clientes_filtrados.count(),
     })
+
 @login_required
 def dashboard_reportes(request):
     if not request.user.groups.filter(name__in=['super_admin', 'admin_group']).exists():

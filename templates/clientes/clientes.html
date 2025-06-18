@@ -130,12 +130,27 @@
         <div class="tab-pane fade show active" id="seguimiento" role="tabpanel" aria-labelledby="seguimiento-tab">
             <div class="d-flex justify-content-between align-items-center mb-3">
                 <h3 class="mb-0">Clientes</h3>
-                <form method="get" class="d-flex" style="gap: 10px;">
-                    <input type="text" name="q" id="searchInputSeguimiento" class="search-box"
-                           placeholder="Buscar cliente..."
-                           value="{{ search_query|default:'' }}"
-                           autocomplete="off">
-                </form>                
+                <div class="w-100 d-flex justify-content-end">
+                    <form method="get" class="d-flex align-items-center gap-2 flex-nowrap">
+                        <input type="text" name="q" id="searchInputSeguimiento" class="search-box"
+                            placeholder="Buscar cliente..." value="{{ search_query|default:'' }}" autocomplete="off">
+
+                        <select name="estado" class="form-select">
+                            <option value="">Todos En Seguimiento</option>
+                            {% for estado in estado_reporte %}
+                                <option value="{{ estado.nombre|lower }}" {% if estado_query == estado.nombre|lower %}selected{% endif %}>
+                                    {{ estado.nombre }}
+                                </option>
+                            {% endfor %}
+                        </select>
+
+                        <button type="submit" class="btn btn-confirm btn-sm">Filtrar</button>
+
+                        {% if search_query or estado_query %}
+                        <a href="{% url 'clientes_seguimiento' %}" class="text-danger fs-5 fw-bold text-decoration-none" title="Limpiar filtros">&times;</a>
+                        {% endif %}
+                    </form>
+                </div>
             </div>
             <hr>
             <div class="table-responsive">
@@ -149,7 +164,7 @@
                             <th>Estado</th>
                             <th>Envíos</th>
                             <th>Últ. envío</th>
-                            <th>Actualizar/Reenviar</th>
+                            <th>Acciones</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -177,39 +192,45 @@
                                 {% endwith %}
                             </td>                            
                             <td class="text-center">
-                                <!-- Botón Actualizar -->
-                                <form method="POST" action="{% url 'actualizar_estado_cliente' %}" style="display:inline;">
-                                    {% csrf_token %}
-                                    <input type="hidden" name="cliente_id" value="{{ cliente.id }}">
-                                    <button type="submit"
-                                            class="btn btn-sm btn-confirmar-actualizacion"
-                                            data-id="{{ cliente.id }}"
-                                            data-numero="{{ cliente.numero_cliente }}"
-                                            data-nombre="{{ cliente.nombre_cliente }}">
-                                        <i class="bi bi-check-circle-fill"></i>
+                                <div class="acciones-btns">
+                                    <!-- Botón Actualizar -->
+                                    <form method="POST" action="{% url 'actualizar_estado_cliente' %}">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="cliente_id" value="{{ cliente.id }}">
+                                        <button type="submit" class="btn btn-accion btn-actualizar" title="Actualizar cliente">
+                                            <i class="bi bi-check-circle-fill"></i>
+                                        </button>
+                                    </form>
+
+                                    <!-- Botón Reportar -->
+                                    <button class="btn btn-accion btn-llamar"
+                                            title="Llamar cliente"
+                                            data-bs-toggle="modal"
+                                            data-bs-target="#modalReportarCliente"
+                                            onclick="abrirModalReportarCliente(
+                                                '{{ cliente.id }}',
+                                                '{{ cliente.numero_cliente }}',
+                                                '{{ cliente.nombre_cliente }}',
+                                                '{{ cliente.contacto_cliente }}',
+                                                '{{ cliente.telefono_cliente|default_if_none:"" }}',
+                                                '{{ cliente.telefono_dos|default_if_none:"" }}',
+                                                '{{ cliente.correo|default_if_none:"" }}',
+                                                '{{ cliente.direccion|default_if_none:"" }}',
+                                                '{{ cliente.contacto_cargo|default_if_none:"" }}'
+                                            )">
+                                        <i class="bi bi-telephone-fill"></i>
                                     </button>
-                                </form>
-                            
-                                <!-- Botón Reportar -->
-                                <button class="btn btn-sm btn-reportar"
-                                        style="margin-left: 5px;"
-                                        data-bs-toggle="modal"
-                                        data-bs-target="#modalReportarCliente"
-                                        onclick="abrirModalReportarCliente(
-                                            '{{ cliente.id }}',
-                                            '{{ cliente.numero_cliente }}',
-                                            '{{ cliente.nombre_cliente }}',
-                                            '{{ cliente.contacto_cliente }}',
-                                            '{{ cliente.telefono_cliente|default_if_none:"" }}',
-                                            '{{ cliente.telefono_dos|default_if_none:"" }}',
-                                            '{{ cliente.correo|default_if_none:"" }}',
-                                            '{{ cliente.direccion|default_if_none:"" }}',
-                                            '{{ cliente.contacto_cargo|default_if_none:"" }}'
-                                        )"
-                                        title="Llamar cliente">
-                                    <i class="bi bi-telephone-fill"></i>
-                                </button>
-                            </td>                            
+
+                                    <!-- Botón Detalle -->
+                                    <button class="btn btn-accion btn-detalle"
+                                            title="Detalle"
+                                            data-bs-toggle="modal"
+                                            data-bs-target="#modalDetalle{{ cliente.id }}">
+                                        <i class="bi bi-eye-fill"></i>
+                                    </button>
+                                </div>
+                            </td>
+                          
                         </tr>
                         {% empty %}
                         <tr>
@@ -224,15 +245,15 @@
             {% if clientes_seguimiento.has_other_pages %}
             <div class="pagination mt-3">
                 {% if clientes_seguimiento.number > 1 %}
-                    <a href="?seguimiento=1{% if search_query %}&q={{ search_query }}{% endif %}" class="btn btn-sm btn-reportar">Primera</a>
-                    <a href="?seguimiento={{ clientes_seguimiento.previous_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}" class="btn btn-sm btn-reportar">&lt;</a>
+                    <a href="?seguimiento=1{% if search_query %}&q={{ search_query }}{% endif %}{% if estado_query %}&estado={{ estado_query }}{% endif %}" class="btn btn-sm btn-reportar">Primera</a>
+                    <a href="?seguimiento={{ clientes_seguimiento.previous_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}{% if estado_query %}&estado={{ estado_query }}{% endif %}" class="btn btn-sm btn-reportar">&lt;</a>
                 {% endif %}
 
                 <span class="btn btn-sm btn-reportar active">{{ clientes_seguimiento.number }}</span>
 
                 {% if clientes_seguimiento.number < clientes_seguimiento.paginator.num_pages %}
-                    <a href="?seguimiento={{ clientes_seguimiento.next_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}" class="btn btn-sm btn-reportar">&gt;</a>
-                    <a href="?seguimiento={{ clientes_seguimiento.paginator.num_pages }}{% if search_query %}&q={{ search_query }}{% endif %}" class="btn btn-sm btn-reportar">Última</a>
+                    <a href="?seguimiento={{ clientes_seguimiento.next_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}{% if estado_query %}&estado={{ estado_query }}{% endif %}" class="btn btn-sm btn-reportar">&gt;</a>
+                    <a href="?seguimiento={{ clientes_seguimiento.paginator.num_pages }}{% if search_query %}&q={{ search_query }}{% endif %}{% if estado_query %}&estado={{ estado_query }}{% endif %}" class="btn btn-sm btn-reportar">Última</a>
                 {% endif %}
             </div>
             {% endif %}
@@ -564,9 +585,140 @@
       </div>
     </div>
   </div>
-  
+
+  {% for cliente in clientes_seguimiento %}
+<div class="modal fade" id="modalDetalle{{ cliente.id }}" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Tracking – Cliente: {{ cliente.numero_cliente }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                {% if cliente.historial_sin_movimiento %}
+                    <p><strong>Veces contactado:</strong> {{ cliente.formulario_sin_contestar }}</p>
+                    <table class="table table-bordered">
+                        <thead>
+                            <tr>
+                                <th>Estado</th>
+                                <th>Fecha y hora</th>
+                                <th>Actualizado por</th>
+                                <th>Gestionado por</th> 
+                                <th>Nota</th>
+                                <th>Tipo</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for h in cliente.historial_sin_movimiento.all|dictsortreversed:"fecha_hora" %}
+                            <tr>
+                                <td>{{ h.estado.nombre }}</td>
+                                <td>{{ h.fecha_hora|date:"d/m/Y H:i" }}</td>
+                                <td>
+                                    {{ h.actualizado_por.get_full_name|default:"-" }}
+                                </td>
+                                <td>
+                                    {{ h.actualizado_por_admin.get_full_name|default:"-" }}
+                                </td>
+                                <td>
+                                    {% if h.nota %}
+                                        • {{ h.nota }}
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="badge bg-warning text-dark">Sin movimiento</span>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                {% else %}
+                    <p>No hay registros de historial para este cliente.</p>
+                {% endif %}
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endfor %}
+
   
 <style>
+    /* Contenedor compacto */
+    .acciones-btns {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 4px;
+        flex-wrap: nowrap;
+    }
+
+    /* Botones base */
+    .acciones-btns button,
+    .acciones-btns form button {
+        font-size: 12px;
+        padding: 4px 6px;
+        height: 30px;
+        min-width: 30px;
+        border-radius: 4px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: none;
+        transition: all 0.2s ease;
+    }
+
+    .btn-accion i {
+        font-size: 14px;
+        color: black;
+        transition: color 0.2s ease;
+    }
+
+    /* Verde: Actualizar */
+    .btn-actualizar {
+        background-color: #28a745;
+        color: black;
+    }
+
+    .btn-actualizar:hover {
+        background-color: #218838;
+    }
+
+    .btn-actualizar:hover i {
+        color: white;
+    }
+
+    /* Naranja: Llamar */
+    .btn-llamar {
+        background-color: #e67e22;
+        color: black;
+    }
+
+    .btn-llamar:hover {
+        background-color: #cf6d17;
+    }
+
+    .btn-llamar:hover i {
+        color: white;
+    }
+
+    /* Gris claro: Detalle */
+    .btn-detalle {
+        background-color:rgb(165, 168, 172);
+        color: black;
+    }
+
+    .btn-detalle:hover {
+        background-color:rgb(146, 149, 151);
+    }
+
+    .btn-detalle:hover i {
+        color: white;
+    }
+
     .icon-copy {
         display: inline-block;
         width: 20px;

@@ -14,14 +14,43 @@
     <div class="tab-content mt-4" id="clienteTabsContent">
         {% if view_type == 'reportados' %}
         <div class="tab-pane fade show active" id="reportados" role="tabpanel" aria-labelledby="reportados-tab">
-            <div class="d-flex justify-content-between align-items-center mb-3">
+            <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-3">
                 <h3 class="mb-0">Clientes</h3>
-                <form method="get" class="d-flex" style="gap: 10px;">
-                    <input type="text" name="q" id="searchInputReportados" class="search-box"
-                           placeholder="Buscar cliente..."
-                           value="{{ search_query|default:'' }}"
-                           autocomplete="off">
-                </form>                                              
+                <form method="get" class="row gx-2 gy-2 align-items-center w-100">
+                    <div class="col-md-auto flex-grow-1">
+                        <input type="text" name="q" id="searchInputReportados" class="form-control"
+                            placeholder="Buscar cliente..." value="{{ search_query|default:'' }}" autocomplete="off">
+                    </div>
+
+                    <div class="col-md-auto">
+                        <select name="estado" class="form-select">
+                            <option value="">Todos los estados</option>
+                            {% for estado in estados_disponibles %}
+                                <option value="{{ estado.nombre|lower }}" {% if estado_query == estado.nombre|lower %}selected{% endif %}>
+                                    {{ estado.nombre }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="col-md-auto">
+                        <input type="date" name="fecha_inicio" class="form-control" value="{{ fecha_inicio|date:'Y-m-d' }}">
+                    </div>
+
+                    <div class="col-md-auto">
+                        <input type="date" name="fecha_fin" class="form-control" value="{{ fecha_fin|date:'Y-m-d' }}">
+                    </div>
+
+                    <div class="col-md-auto">
+                        <button type="submit" class="btn btn-confirm btn-sm w-100">Filtrar</button>
+                    </div>
+
+                    {% if search_query or estado_query or fecha_inicio or fecha_fin %}
+                    <div class="col-md-auto d-flex align-items-center">
+                        <a href="{% url 'clientes_reportados' %}" class="text-danger fs-5 fw-bold text-decoration-none" title="Limpiar filtros">&times;</a>
+                    </div>
+                    {% endif %}
+                </form>                        
             </div>
             <hr>
             <div class="table-responsive">
@@ -68,20 +97,19 @@
                     </tbody>
                 </table>
             </div>
-        
-            <!-- Paginación de Django para clientes reportados -->
+
             {% if clientes.has_other_pages %}
             <div class="pagination mt-3">
                 {% if clientes.number > 1 %}
-                    <a href="?reportados=1{% if search_query %}&q={{ search_query }}{% endif %}" class="btn btn-sm btn-reportar">Primera</a>
-                    <a href="?reportados={{ clientes.previous_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}" class="btn btn-sm btn-reportar">&lt;</a>
+                    <a href="?reportados=1{% if search_query %}&q={{ search_query }}{% endif %}{% if estado_query %}&estado={{ estado_query }}{% endif %}{% if fecha_inicio %}&fecha_inicio={{ fecha_inicio|date:'Y-m-d' }}{% endif %}{% if fecha_fin %}&fecha_fin={{ fecha_fin|date:'Y-m-d' }}{% endif %}" class="btn btn-sm btn-reportar">Primera</a>
+                    <a href="?reportados={{ clientes.previous_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}{% if estado_query %}&estado={{ estado_query }}{% endif %}{% if fecha_inicio %}&fecha_inicio={{ fecha_inicio|date:'Y-m-d' }}{% endif %}{% if fecha_fin %}&fecha_fin={{ fecha_fin|date:'Y-m-d' }}{% endif %}" class="btn btn-sm btn-reportar">&lt;</a>
                 {% endif %}
-        
+
                 <span class="btn btn-sm btn-reportar active">{{ clientes.number }}</span>
-        
+
                 {% if clientes.number < clientes.paginator.num_pages %}
-                    <a href="?reportados={{ clientes.next_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}" class="btn btn-sm btn-reportar">&gt;</a>
-                    <a href="?reportados={{ clientes.paginator.num_pages }}{% if search_query %}&q={{ search_query }}{% endif %}" class="btn btn-sm btn-reportar">Última</a>
+                    <a href="?reportados={{ clientes.next_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}{% if estado_query %}&estado={{ estado_query }}{% endif %}{% if fecha_inicio %}&fecha_inicio={{ fecha_inicio|date:'Y-m-d' }}{% endif %}{% if fecha_fin %}&fecha_fin={{ fecha_fin|date:'Y-m-d' }}{% endif %}" class="btn btn-sm btn-reportar">&gt;</a>
+                    <a href="?reportados={{ clientes.paginator.num_pages }}{% if search_query %}&q={{ search_query }}{% endif %}{% if estado_query %}&estado={{ estado_query }}{% endif %}{% if fecha_inicio %}&fecha_inicio={{ fecha_inicio|date:'Y-m-d' }}{% endif %}{% if fecha_fin %}&fecha_fin={{ fecha_fin|date:'Y-m-d' }}{% endif %}" class="btn btn-sm btn-reportar">Última</a>
                 {% endif %}
             </div>
             {% endif %}

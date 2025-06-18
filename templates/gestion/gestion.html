@@ -598,15 +598,15 @@
                 {% if clientes_todos.has_other_pages %}
                 <div class="pagination mt-3">
                     {% if clientes_todos.number > 1 %}
-                        <a href="?todos=1{% if search_query %}&q={{ search_query }}{% endif %}" class="btn btn-sm btn-reportar">Primera</a>
-                        <a href="?todos={{ clientes_todos.previous_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}" class="btn btn-sm btn-reportar">&lt;</a>
+                        <a href="?todos=1{% if search_query %}&q={{ search_query }}{% endif %}{% if estado_query %}&estado={{ estado_query }}{% endif %}" class="btn btn-sm btn-reportar">Primera</a>
+                        <a href="?todos={{ clientes_todos.previous_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}{% if estado_query %}&estado={{ estado_query }}{% endif %}" class="btn btn-sm btn-reportar">&lt;</a>
                     {% endif %}
 
                     <span class="btn btn-sm btn-reportar active">{{ clientes_todos.number }}</span>
 
                     {% if clientes_todos.number < clientes_todos.paginator.num_pages %}
-                        <a href="?todos={{ clientes_todos.next_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}" class="btn btn-sm btn-reportar">&gt;</a>
-                        <a href="?todos={{ clientes_todos.paginator.num_pages }}{% if search_query %}&q={{ search_query }}{% endif %}" class="btn btn-sm btn-reportar">Última</a>
+                        <a href="?todos={{ clientes_todos.next_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}{% if estado_query %}&estado={{ estado_query }}{% endif %}" class="btn btn-sm btn-reportar">&gt;</a>
+                        <a href="?todos={{ clientes_todos.paginator.num_pages }}{% if search_query %}&q={{ search_query }}{% endif %}{% if estado_query %}&estado={{ estado_query }}{% endif %}" class="btn btn-sm btn-reportar">Última</a>
                     {% endif %}
                 </div>
                 {% endif %}
