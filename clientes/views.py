@@ -91,7 +91,7 @@ def clientes_pendientes(request):
         .exclude(nombre__iexact="no localizado") \
         .exclude(nombre__iexact="por localizar") \
         .exclude(nombre__iexact="formulario sin respuesta") \
-        .exclude(nombre__iexact="completado")
+        .exclude(nombre__iexact="cerrado (por admin)")
     # Clientes actualizados por el usuario hoy
     actualizados_hoy_qs = Cliente.objects.filter(
         estado_actual__nombre__iexact="actualizado",
@@ -172,7 +172,7 @@ def clientes_seguimiento(request):
         clientes_seguimiento_qs = clientes_seguimiento_qs.filter(estado_actual__nombre__iexact=estado_query)
 
     # Ordenar por la última fecha del historial
-    clientes_seguimiento_qs = clientes_seguimiento_qs.order_by('-ultima_fecha_hist')
+    clientes_seguimiento_qs = clientes_seguimiento_qs.order_by('ultima_fecha_hist')
 
     # Paginación
     clientes_seguimiento = paginar_queryset(request, clientes_seguimiento_qs, 'seguimiento')
@@ -204,7 +204,7 @@ def clientes_seguimiento(request):
         .exclude(nombre__iexact="no localizado") \
         .exclude(nombre__iexact="por localizar") \
         .exclude(nombre__iexact="formulario sin respuesta") \
-        .exclude(nombre__iexact="completado")
+        .exclude(nombre__iexact="cerrado (por admin)")
 
     # -------- Clientes actualizados hoy por el usuario ----------
     actualizados_hoy_qs = Cliente.objects.filter(
@@ -267,13 +267,30 @@ def clientes_sin_contestar(request):
     estado_no_contesto = EstadoReporte.objects.filter(nombre__iexact="no contestó").first()
     estado_actualizado = EstadoReporte.objects.filter(nombre__iexact="actualizado").first()
 
-    clientes_sin_contestar_qs = Cliente.objects.filter(asignado_usuario=usuario, estado_actual=estado_no_contesto)
+    # Subquery para obtener la última fecha del historial sin movimiento
+    subquery_ultima_historial = HistorialEstadoSinMovimiento.objects.filter(
+        cliente=OuterRef('pk')
+    ).order_by('-fecha_hora').values('fecha_hora')[:1]
+
+    # Query principal con anotación y ordenamiento por fecha más antigua
+    clientes_sin_contestar_qs = Cliente.objects.filter(
+        asignado_usuario=usuario,
+        estado_actual=estado_no_contesto
+    ).annotate(
+        ultima_fecha_hist=Subquery(subquery_ultima_historial, output_field=DateTimeField())
+    )
+
     if search_query:
         clientes_sin_contestar_qs = clientes_sin_contestar_qs.filter(
             Q(nombre_cliente__icontains=search_query) |
             Q(numero_cliente__icontains=search_query) |
             Q(contacto_cliente__icontains=search_query)
         )
+
+    # Ordenar por los más antiguos
+    clientes_sin_contestar_qs = clientes_sin_contestar_qs.order_by('ultima_fecha_hist')
+
+    # Paginación
     clientes_sin_contestar = paginar_queryset(request, clientes_sin_contestar_qs, 'nocontesto')
 
     # Contador sin actualizar
@@ -296,7 +313,7 @@ def clientes_sin_contestar(request):
         .exclude(nombre__iexact="no localizado") \
         .exclude(nombre__iexact="por localizar") \
         .exclude(nombre__iexact="formulario sin respuesta") \
-        .exclude(nombre__iexact="completado")
+        .exclude(nombre__iexact="cerrado (por admin)")
     
     # Clientes actualizados por el usuario hoy
     actualizados_hoy_qs = Cliente.objects.filter(
@@ -954,6 +971,7 @@ def dashboard_reportes(request):
             interacciones_completados += sum(
                 r.estado and r.estado.genera_movimiento and r.estado != estado_actualizado for r in registros_validos
             )
+            total_interacciones += len(registros_validos)  # Conteo limpio de interacciones
 
         if ultimo.estado:
             reportes_generales[ultimo.estado.nombre] += 1
@@ -996,7 +1014,6 @@ def dashboard_reportes(request):
         ).distinct().count()
 
     porcentaje_avance = round((clientes_actualizados / total_clientes) * 100, 2) if total_clientes else 0
-    total_interacciones = interacciones_seguimiento + interacciones_formulario + interacciones_actualizados + interacciones_completados
 
     context = {
         "fecha_inicio": fecha_inicio,
@@ -1037,6 +1054,7 @@ def dashboard_reportes(request):
     }
 
     return render(request, 'dashboard/dashboard.html', context)
+
 @login_required
 def clientes_sin_asignar_view(request):
     usuario = request.user
