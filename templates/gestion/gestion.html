@@ -786,8 +786,8 @@
                                 <label class="form-check-label" for="estadoPendiente">Pendiente</label>
                             </div>
                             <div class="form-check">
-                                <input class="form-check-input estado-radio" type="radio" name="estado" value="completado" id="estadoCompletado">
-                                <label class="form-check-label" for="estadoCompletado">Completado</label>
+                                <input class="form-check-input estado-radio" type="radio" name="estado" value="Cerrado (por admin)" id="estadoCerrado">
+                                <label class="form-check-label" for="estadoCerrado">Cerrado</label>
                             </div>
                             <div class="form-check">
                                 <input class="form-check-input estado-radio" type="radio" name="estado" value="actualizado" id="estadoActualizado">
@@ -1356,18 +1356,18 @@
             const asignacion = document.getElementById('asignacionUsuario');
             const acreditar = document.getElementById('acreditarMovimiento');
             const motivo = document.querySelector('input[name="motivo"]').closest('.mb-3');
-    
+
             // Mostrar secciones según estado seleccionado
             if (selectedEstado === 'pendiente') {
                 asignacion.classList.remove('d-none');
                 acreditar.classList.add('d-none');
                 motivo.classList.remove('d-none');
-            } else if (selectedEstado === 'completado' || selectedEstado === 'actualizado') {
+            } else if (selectedEstado === 'Cerrado (por admin)' || selectedEstado === 'actualizado') {
                 asignacion.classList.add('d-none');
                 acreditar.classList.remove('d-none');
                 motivo.classList.remove('d-none');
             }
-    
+
             // Si no hay cambio y no es pendiente → ocultar motivo y acreditar
             if (selectedEstado === currentEstado && currentEstado !== 'pendiente') {
                 motivo.classList.add('d-none');
