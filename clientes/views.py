@@ -766,6 +766,7 @@ def clientes_reportados(request):
     fecha_inicio = parse_date(request.GET.get('fecha_inicio', ''))
     fecha_fin = parse_date(request.GET.get('fecha_fin', ''))
 
+    # Subqueries para la última fecha de actividad
     subquery_ultima_fecha_mov = MovimientoEstado.objects.filter(cliente=OuterRef('pk')).order_by('-fecha_hora').values('fecha_hora')[:1]
     subquery_ultima_fecha_hist = HistorialEstadoSinMovimiento.objects.filter(cliente=OuterRef('pk')).order_by('-fecha_hora').values('fecha_hora')[:1]
 
@@ -775,11 +776,12 @@ def clientes_reportados(request):
         ultima_fecha_mov=Subquery(subquery_ultima_fecha_mov, output_field=DateTimeField()),
         ultima_fecha_hist=Subquery(subquery_ultima_fecha_hist, output_field=DateTimeField()),
         ultima_fecha=Greatest(
-            Coalesce(Subquery(subquery_ultima_fecha_mov, output_field=DateTimeField()), Value('1900-01-01', output_field=DateTimeField())),
-            Coalesce(Subquery(subquery_ultima_fecha_hist, output_field=DateTimeField()), Value('1900-01-01', output_field=DateTimeField()))
+            Coalesce(Subquery(subquery_ultima_fecha_mov, output_field=DateTimeField()), Value(datetime(1900, 1, 1))),
+            Coalesce(Subquery(subquery_ultima_fecha_hist, output_field=DateTimeField()), Value(datetime(1900, 1, 1)))
         )
     )
 
+    # Filtro según rol
     if "super_admin" in grupos or "admin_group" in grupos:
         clientes_filtrados = clientes_reportados_query.filter(
             Q(Exists(MovimientoEstado.objects.filter(cliente=OuterRef('pk')))) |
@@ -794,40 +796,47 @@ def clientes_reportados(request):
         messages.error(request, "Acceso no permitido.")
         return redirect("inicio")
 
+    # Filtros de búsqueda y estado
     if search_query:
         clientes_filtrados = clientes_filtrados.filter(
             Q(nombre_cliente__icontains=search_query) |
             Q(numero_cliente__icontains=search_query) |
             Q(contacto_cliente__icontains=search_query)
         )
-
     if estado_query:
         clientes_filtrados = clientes_filtrados.filter(estado_actual__nombre__iexact=estado_query)
-
     if fecha_inicio and fecha_fin:
         clientes_filtrados = clientes_filtrados.filter(
             ultima_fecha__date__range=(fecha_inicio, fecha_fin)
         )
 
+    # Orden y paginación
     clientes_filtrados = clientes_filtrados.order_by('-ultima_fecha')
     clientes_paginados = paginar_queryset(request, clientes_filtrados, 'reportados')
 
+    # Procesamiento individual
     for cliente in clientes_paginados:
         movimientos_normales = [{"obj": m, "tipo": "con_movimiento"} for m in cliente.movimientos.all()]
         movimientos_historial = [{"obj": h, "tipo": "sin_movimiento"} for h in cliente.historial_sin_movimiento.all() if not h.genera_movimiento]
         todos_movimientos = sorted(movimientos_normales + movimientos_historial, key=lambda x: x["obj"].fecha_hora, reverse=True)
+
         movimientos_sin_admin = [m for m in todos_movimientos if getattr(m["obj"], "actualizado_por_admin", None) is None]
 
         cliente.todos_los_movimientos = todos_movimientos
         cliente.movimientos_sin_admin = movimientos_sin_admin
-        cliente.ultimo_movimiento = cliente.movimientos.order_by('-fecha_hora').first()
-        cliente.reportado_por = cliente.todos_los_movimientos[0]["obj"].actualizado_por if cliente.todos_los_movimientos else None
 
-    # Solo estados usados actualmente
+        # Último estado real y quién lo reportó
+        if movimientos_sin_admin:
+            cliente.ultimo_estado_real = movimientos_sin_admin[0]["obj"].estado
+            cliente.reportado_por = movimientos_sin_admin[0]["obj"].actualizado_por
+        else:
+            cliente.ultimo_estado_real = cliente.estado_actual  # Fallback
+            cliente.reportado_por = None
+
+    # Estados disponibles (excluyendo pendiente)
     estados_disponibles = EstadoReporte.objects.filter(
         id__in=Cliente.objects.values_list('estado_actual', flat=True).distinct()
     ).exclude(nombre__iexact="pendiente")
-
 
     return render(request, 'clientes/clientes_reportados.html', {
         "clientes": clientes_paginados,
@@ -859,53 +868,116 @@ def dashboard_reportes(request):
         "estandar": Group.objects.get(name='estandar_group'),
         "colector": Group.objects.get(name='colector_group'),
     }
-
     grupo_activo = grupo_obj[grupo]
+    usuarios_activos = User.objects.filter(groups=grupo_activo)
 
-    usuarios = User.objects.filter(
-        groups=grupo_activo
-    ).exclude(username="colector").filter(
-        Q(movimientoestado__isnull=False) | Q(historialestadosinmovimiento__isnull=False)
-    ).distinct()
-
-    movimientos = MovimientoEstado.objects.select_related('cliente', 'estado', 'actualizado_por')
-    historial = HistorialEstadoSinMovimiento.objects.select_related('cliente', 'estado', 'actualizado_por')
-
-    filtro_activo = bool(fecha_inicio or fecha_fin or usuario_id)
-
-    if fecha_inicio:
-        fecha_inicio_dt = make_aware(datetime.combine(parse_date(fecha_inicio), datetime.min.time()))
-        movimientos = movimientos.filter(fecha_hora__gte=fecha_inicio_dt)
-        historial = historial.filter(fecha_hora__gte=fecha_inicio_dt)
-    if fecha_fin:
-        fecha_fin_dt = make_aware(datetime.combine(parse_date(fecha_fin), datetime.max.time()))
-        movimientos = movimientos.filter(fecha_hora__lte=fecha_fin_dt)
-        historial = historial.filter(fecha_hora__lte=fecha_fin_dt)
-    if usuario_id:
-        movimientos = movimientos.filter(actualizado_por__id=usuario_id)
-        historial = historial.filter(actualizado_por__id=usuario_id)
-
-    movimientos = movimientos.filter(actualizado_por__groups=grupo_activo, actualizado_por_admin__isnull=True)
-    historial = historial.filter(actualizado_por__groups=grupo_activo, actualizado_por_admin__isnull=True)
-
+    # Estados clave
     estado_pendiente = EstadoReporte.objects.filter(nombre__iexact="pendiente").first()
     estado_actualizado = EstadoReporte.objects.filter(nombre__iexact="actualizado").first()
     estado_formulario = EstadoReporte.objects.filter(nombre__iexact="formulario enviado").first()
-    estados_seguimiento = EstadoReporte.objects.filter(genera_movimiento=False).exclude(nombre__iexact="pendiente")
+    estados_seguimiento = list(EstadoReporte.objects.filter(genera_movimiento=False).exclude(nombre__iexact="pendiente"))
 
-    combined = list(chain(movimientos, historial))
-    ultimo_por_cliente = {}
+    # Subqueries para última fecha
+    subquery_ultima_fecha_mov = MovimientoEstado.objects.filter(cliente=OuterRef('pk')).order_by('-fecha_hora').values('fecha_hora')[:1]
+    subquery_ultima_fecha_hist = HistorialEstadoSinMovimiento.objects.filter(cliente=OuterRef('pk')).order_by('-fecha_hora').values('fecha_hora')[:1]
 
-    for r in combined:
-        c_id = r.cliente.id
-        if c_id not in ultimo_por_cliente or r.fecha_hora > ultimo_por_cliente[c_id].fecha_hora:
-            ultimo_por_cliente[c_id] = r
+    clientes = Cliente.objects.annotate(
+        ultima_fecha_mov=Subquery(subquery_ultima_fecha_mov, output_field=DateTimeField()),
+        ultima_fecha_hist=Subquery(subquery_ultima_fecha_hist, output_field=DateTimeField()),
+        ultima_fecha=Greatest(
+            Coalesce(Subquery(subquery_ultima_fecha_mov, output_field=DateTimeField()), Value(datetime(1900, 1, 1))),
+            Coalesce(Subquery(subquery_ultima_fecha_hist, output_field=DateTimeField()), Value(datetime(1900, 1, 1)))
+        )
+    ).prefetch_related(
+        Prefetch(
+            'movimientos',
+            queryset=MovimientoEstado.objects.select_related('estado', 'actualizado_por', 'actualizado_por_admin')
+            .filter(actualizado_por__in=usuarios_activos)
+        ),
+        Prefetch(
+            'historial_sin_movimiento',
+            queryset=HistorialEstadoSinMovimiento.objects.select_related('estado', 'actualizado_por', 'actualizado_por_admin')
+            .filter(actualizado_por__in=usuarios_activos)
+        )
+    )
 
-    clientes_contactados = len(ultimo_por_cliente)
-    clientes_actualizados = sum(1 for r in ultimo_por_cliente.values() if r.estado == estado_actualizado)
-    clientes_completados = sum(1 for r in ultimo_por_cliente.values() if r.estado and r.estado.genera_movimiento and r.estado != estado_actualizado)
-    clientes_en_seguimiento = sum(1 for r in ultimo_por_cliente.values() if r.estado and not r.estado.genera_movimiento and r.estado != estado_pendiente)
+    # Filtros por fecha
+    if fecha_inicio and fecha_fin:
+        fecha_inicio_dt = parse_date(fecha_inicio)
+        fecha_fin_dt = parse_date(fecha_fin)
+        clientes = clientes.filter(ultima_fecha__date__range=(fecha_inicio_dt, fecha_fin_dt))
 
+    if usuario_id:
+        clientes = clientes.filter(
+            Q(movimientos__actualizado_por__id=usuario_id) |
+            Q(historial_sin_movimiento__actualizado_por__id=usuario_id)
+        ).distinct()
+
+    usuarios = usuarios_activos.exclude(username="colector").filter(
+        Q(movimientoestado__isnull=False) | Q(historialestadosinmovimiento__isnull=False)
+    ).distinct()
+
+    # Inicializar métricas
+    clientes_contactados = clientes_actualizados = clientes_completados = clientes_en_seguimiento = 0
+    reportes_generales = defaultdict(int)
+    reportes_finalizados = defaultdict(int)
+    reportes_seguimiento = defaultdict(int)
+    reportes_por_usuario = defaultdict(int)
+    actualizados_por_usuario = defaultdict(int)
+    total_interacciones = interacciones_seguimiento = interacciones_formulario = interacciones_actualizados = interacciones_completados = 0
+
+    for cliente in clientes:
+        movimientos = list(cliente.movimientos.all())
+        historiales = list(cliente.historial_sin_movimiento.all())
+
+        if not movimientos and not historiales:
+            continue
+
+        registros_completos = sorted(
+            chain(movimientos, historiales),
+            key=lambda x: x.fecha_hora,
+            reverse=True
+        )
+        ultimo = registros_completos[0]
+
+        registros_validos = [r for r in registros_completos if r.actualizado_por_admin is None and r.actualizado_por and r.estado]
+        if not registros_validos:
+            continue
+
+        ultimo_valido = registros_validos[0]
+        clientes_contactados += 1
+
+        if grupo == "estandar":
+            interacciones_seguimiento += sum(r.estado in estados_seguimiento for r in registros_validos)
+            interacciones_formulario += sum(r.estado == estado_formulario for r in registros_validos)
+            interacciones_actualizados += sum(r.estado == estado_actualizado for r in registros_validos)
+            interacciones_completados += sum(
+                r.estado and r.estado.genera_movimiento and r.estado != estado_actualizado for r in registros_validos
+            )
+
+        if ultimo.estado:
+            reportes_generales[ultimo.estado.nombre] += 1
+
+            if grupo == "estandar":
+                if ultimo.estado == estado_actualizado:
+                    clientes_actualizados += 1
+                elif ultimo.estado.genera_movimiento:
+                    clientes_completados += 1
+                elif not ultimo.estado.genera_movimiento and ultimo.estado != estado_pendiente:
+                    clientes_en_seguimiento += 1
+
+                if ultimo.estado.genera_movimiento:
+                    reportes_finalizados[ultimo.estado.nombre] += 1
+                else:
+                    reportes_seguimiento[ultimo.estado.nombre] += 1
+
+        if ultimo_valido.actualizado_por:
+            nombre = ultimo_valido.actualizado_por.get_full_name()
+            reportes_por_usuario[nombre] += 1
+            if ultimo_valido.estado == estado_actualizado:
+                actualizados_por_usuario[nombre] += 1
+
+    # Cálculo de tarjetas base
     if grupo == "estandar":
         total_clientes = Cliente.objects.count()
         clientes_asignados = Cliente.objects.filter(asignado_inicial__groups=grupo_activo).distinct().count()
@@ -924,37 +996,7 @@ def dashboard_reportes(request):
         ).distinct().count()
 
     porcentaje_avance = round((clientes_actualizados / total_clientes) * 100, 2) if total_clientes else 0
-
-    total_interacciones = interacciones_seguimiento = interacciones_formulario = interacciones_actualizados = interacciones_completados = 0
-    if grupo == "estandar":
-        total_interacciones = movimientos.count() + historial.count()
-        interacciones_seguimiento = movimientos.filter(estado__in=estados_seguimiento).count() + historial.filter(estado__in=estados_seguimiento).count()
-        if estado_formulario:
-            interacciones_formulario = movimientos.filter(estado=estado_formulario).count() + historial.filter(estado=estado_formulario).count()
-        if estado_actualizado:
-            interacciones_actualizados = movimientos.filter(estado=estado_actualizado).count() + historial.filter(estado=estado_actualizado).count()
-        interacciones_completados = movimientos.filter(estado__genera_movimiento=True).exclude(estado=estado_actualizado).count() + \
-                                    historial.filter(estado__genera_movimiento=True).exclude(estado=estado_actualizado).count()
-
-    reportes_finalizados = defaultdict(int)
-    reportes_seguimiento = defaultdict(int)
-    reportes_generales = defaultdict(int)
-    reportes_por_usuario = defaultdict(int)
-    actualizados_por_usuario = defaultdict(int)
-
-    for r in ultimo_por_cliente.values():
-        if r.estado:
-            reportes_generales[r.estado.nombre] += 1
-            if grupo == "estandar":
-                if r.estado.genera_movimiento:
-                    reportes_finalizados[r.estado.nombre] += 1
-                else:
-                    reportes_seguimiento[r.estado.nombre] += 1
-        if r.actualizado_por:
-            nombre = r.actualizado_por.get_full_name()
-            reportes_por_usuario[nombre] += 1
-            if r.estado == estado_actualizado:
-                actualizados_por_usuario[nombre] += 1
+    total_interacciones = interacciones_seguimiento + interacciones_formulario + interacciones_actualizados + interacciones_completados
 
     context = {
         "fecha_inicio": fecha_inicio,
@@ -962,7 +1004,7 @@ def dashboard_reportes(request):
         "usuario_id": usuario_id,
         "usuarios": usuarios,
         "grupo": grupo,
-        "filtro_activo": filtro_activo,
+        "filtro_activo": bool(fecha_inicio or fecha_fin or usuario_id),
         "clientes_totales": total_clientes,
         "clientes_estandar": clientes_contactados if grupo == "estandar" else 0,
         "clientes_colector": clientes_contactados if grupo == "colector" else 0,
@@ -2231,7 +2273,8 @@ def editar_cliente(request):
             genera_movimiento=False
         )
 
-    elif estado_nombre in ['actualizado', 'completado']:
+    elif estado_nombre in ['actualizado', 'Cerrado (por admin)']:
+
         if acreditar_id:
             acreditar_usuario = get_object_or_404(User, id=acreditar_id)
         else:

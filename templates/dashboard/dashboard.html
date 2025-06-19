@@ -19,29 +19,42 @@
     <div class="tab-content" id="dashboardTabsContent">
         <!-- TAB ESTÁNDAR -->
         <div class="tab-pane fade show active" id="estandar-tab-pane" role="tabpanel" aria-labelledby="estandar-tab">
-        <form method="get" class="row g-3 mb-4">
+        <div class="d-flex justify-content-center">
+        <form method="get" class="row gx-2 gy-2 align-items-center w-auto mb-4 justify-content-center">
             <input type="hidden" name="grupo" value="estandar">
-            <div class="col-md-3">
-            <label for="fecha_inicio_estandar" class="form-label">Fecha inicio:</label>
-            <input type="date" name="fecha_inicio" id="fecha_inicio_estandar" class="form-control" value="{{ fecha_inicio|default:'' }}">
+
+            <div class="col-md-auto">
+                <input type="date" name="fecha_inicio" id="fecha_inicio_estandar" class="form-control"
+                    value="{{ fecha_inicio|default:'' }}">
             </div>
-            <div class="col-md-3">
-            <label for="fecha_fin_estandar" class="form-label">Fecha fin:</label>
-            <input type="date" name="fecha_fin" id="fecha_fin_estandar" class="form-control" value="{{ fecha_fin|default:'' }}">
+
+            <div class="col-md-auto">
+                <input type="date" name="fecha_fin" id="fecha_fin_estandar" class="form-control"
+                    value="{{ fecha_fin|default:'' }}">
             </div>
-            <div class="col-md-4">
-            <label for="usuario_estandar" class="form-label">Usuario:</label>
-            <select name="usuario_id" id="usuario_estandar" class="form-select">
-                <option value="">-- Todos --</option>
-                {% for u in usuarios %}
-                <option value="{{ u.id }}" {% if usuario_id == u.id|stringformat:"s" %}selected{% endif %}>{{ u.get_full_name }}</option>
-                {% endfor %}
-            </select>
+
+            <div class="col-md-auto">
+                <select name="usuario_id" id="usuario_estandar" class="form-select" style="min-width: 200px;">
+                    <option value="">-- Todos los usuarios --</option>
+                    {% for u in usuarios %}
+                        <option value="{{ u.id }}" {% if usuario_id == u.id|stringformat:"s" %}selected{% endif %}>
+                            {{ u.get_full_name }}
+                        </option>
+                    {% endfor %}
+                </select>
             </div>
-            <div class="col-md-2 align-self-end">
-            <button type="submit" class="btn btn-confirm w-100">Filtrar</button>
+
+            <div class="col-md-auto">
+                <button type="submit" class="btn btn-confirm btn-sm w-100">Filtrar</button>
             </div>
+
+            {% if fecha_inicio or fecha_fin or usuario_id %}
+            <div class="col-md-auto d-flex align-items-center">
+                <a href="{% url 'dashboard_reportes' %}?grupo=estandar" class="text-danger fs-5 fw-bold text-decoration-none" title="Limpiar filtros">&times;</a>
+            </div>
+            {% endif %}
         </form>
+    </div>
 
         {% if not filtro_activo %}
         <div class="mb-4">
@@ -244,30 +257,42 @@
 
         <!-- TAB COLECTORES -->
         <div class="tab-pane fade" id="colectores-tab-pane" role="tabpanel" aria-labelledby="colectores-tab">
-        <form method="get" class="row g-3 mb-4">
-            <input type="hidden" name="grupo" value="colector">
-            <div class="col-md-3">
-            <label for="fecha_inicio_colector" class="form-label">Fecha inicio:</label>
-            <input type="date" name="fecha_inicio" id="fecha_inicio_colector" class="form-control" value="{{ fecha_inicio|default:'' }}">
-            </div>
-            <div class="col-md-3">
-            <label for="fecha_fin_colector" class="form-label">Fecha fin:</label>
-            <input type="date" name="fecha_fin" id="fecha_fin_colector" class="form-control" value="{{ fecha_fin|default:'' }}">
-            </div>
-            <div class="col-md-4">
-            <label for="usuario_colector" class="form-label">Usuario:</label>
-            <select name="usuario_id" id="usuario_colector" class="form-select">
-                <option value="">-- Todos --</option>
-                {% for u in usuarios %}
-                <option value="{{ u.id }}" {% if usuario_id == u.id|stringformat:"s" %}selected{% endif %}>{{ u.get_full_name }}</option>
-                {% endfor %}
-            </select>
-            </div>
-            <div class="col-md-2 align-self-end">
-            <button type="submit" class="btn btn-confirm w-100">Filtrar</button>
-            </div>
-        </form>
+        <div class="d-flex justify-content-center">
+            <form method="get" class="row gx-2 gy-2 align-items-center w-auto mb-4 justify-content-center">
+                <input type="hidden" name="grupo" value="colector">
 
+                <div class="col-md-auto">
+                    <input type="date" name="fecha_inicio" id="fecha_inicio_colector" class="form-control"
+                        value="{{ fecha_inicio|default:'' }}">
+                </div>
+
+                <div class="col-md-auto">
+                    <input type="date" name="fecha_fin" id="fecha_fin_colector" class="form-control"
+                        value="{{ fecha_fin|default:'' }}">
+                </div>
+
+                <div class="col-md-auto">
+                    <select name="usuario_id" id="usuario_colector" class="form-select" style="min-width: 200px;">
+                        <option value="">-- Todos los usuarios --</option>
+                        {% for u in usuarios %}
+                            <option value="{{ u.id }}" {% if usuario_id == u.id|stringformat:"s" %}selected{% endif %}>
+                                {{ u.get_full_name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-md-auto">
+                    <button type="submit" class="btn btn-confirm btn-sm w-100">Filtrar</button>
+                </div>
+
+                {% if fecha_inicio or fecha_fin or usuario_id %}
+                <div class="col-md-auto d-flex align-items-center">
+                    <a href="{% url 'dashboard_reportes' %}?grupo=colector" class="text-danger fs-5 fw-bold text-decoration-none" title="Limpiar filtros">&times;</a>
+                </div>
+                {% endif %}
+            </form>
+        </div>
         {% if not filtro_activo %}
         <div class="mb-4">
             {% if clientes_totales_colector > 0 %}
