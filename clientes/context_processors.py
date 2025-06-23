@@ -13,7 +13,7 @@ def active_menu(request):
         "clientes_colectores": ["clientes_colectores", "clientes_colectores_completados", "clientes_colectores_actualizados"],
         "clientes_reportados": ["clientes_reportados"],
         "usuarios": ["usuarios", "agregar_usuario", "editar_usuario", "eliminar_usuario"],
-        "dashboard_reportes": ["dashboard_reportes"],
+        "dashboard_reportes": ["dashboard_reportes", "seguimiento_comparativa"], 
         "gestion": ["gestion", "clientes_todos_gestion", "clientes_para_colectores_gestion", "clientes_pendientes_gestion", "clientes_seguimiento_gestion", "clientes_actualizados_gestion"],
     }
 

@@ -1,0 +1,319 @@
+{% extends 'layout/layout.html' %}
+{% block title %}Comparativa de Seguimiento{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h3 class="mb-4">Comparativa de Clientes En Seguimiento (Formulario)</h3>
+    <hr>
+
+    {% if error %}
+    <div class="alert alert-danger text-center">{{ error }}</div>
+    {% else %}
+
+    <!-- Sección: Datos globales del envío -->
+    <h4 class="section-label">Clientes que recibieron el formulario por correo</h4>
+    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-4 g-3 justify-content-center mt-3">
+
+        <!-- Recibieron Formulario -->
+        <div class="col">
+            <form method="post" action="{% url 'exportar_seguimiento_categoria' %}" class="form-exportar">
+                {% csrf_token %}
+                <input type="hidden" name="categoria" value="recibieron">
+            </form>
+            <div class="card border-info text-center d-flex flex-column justify-content-center card-clickable" data-categoria="recibieron">
+                <div class="card-body">
+                    <h5 class="card-title">Recibieron Formulario</h5>
+                    <p class="card-text">
+                        <span class="badge-totales">{{ clientes_que_recibieron_formulario }} de {{ total_clientes }}</span>
+                    </p>
+                    <span class="porcentaje">{{ porcentaje_recibieron_formulario }}%</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Veces que se envió Formulario -->
+        <div class="col">
+            <div class="card border-primary text-center d-flex flex-column justify-content-center">
+                <div class="card-body">
+                    <h5 class="card-title">Veces que se envió Formulario</h5>
+                    <p class="card-text">
+                        <span class="badge-totales">{{ total_envios_formulario }}</span>
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sección: Estado actual de los clientes -->
+    <h4 class="section-label">Porcentaje de respuestas a correo</h4>
+    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-4 g-3 justify-content-center mt-3">
+
+        <!-- Contestaron correo -->
+        <div class="col">
+            <form method="post" action="{% url 'exportar_seguimiento_categoria' %}" class="form-exportar">
+                {% csrf_token %}
+                <input type="hidden" name="categoria" value="otro_estado">
+            </form>
+            <div class="card border-dark text-center d-flex flex-column justify-content-center card-clickable" data-categoria="otro_estado">
+                <div class="card-body">
+                    <h5 class="card-title">Dieron respuesta a correo</h5>
+                    <p class="card-text">
+                        <span class="badge-totales">{{ total_formulario_y_otro_estado }} de {{ clientes_que_recibieron_formulario }}</span>
+                    </p>
+                    <span class="porcentaje">{{ porcentaje_formulario_y_otro_estado }}%</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Actualizados mediante Formulario -->
+        <div class="col">
+            <form method="post" action="{% url 'exportar_seguimiento_categoria' %}" class="form-exportar">
+                {% csrf_token %}
+                <input type="hidden" name="categoria" value="actualizados">
+            </form>
+            <div class="card border-success text-center d-flex flex-column justify-content-center card-clickable" data-categoria="actualizados">
+                <div class="card-body">
+                    <h5 class="card-title">Actualizaron por Formulario</h5>
+                    <p class="card-text">
+                        <span class="badge-totales">{{ total_actualizados_con_formulario }} de {{ clientes_que_recibieron_formulario }}</span>
+                    </p>
+                    <span class="porcentaje">{{ porcentaje_actualizados }}%</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sin contestar Formulario -->
+        <div class="col">
+            <form method="post" action="{% url 'exportar_seguimiento_categoria' %}" class="form-exportar">
+                {% csrf_token %}
+                <input type="hidden" name="categoria" value="sin_contestar">
+            </form>
+            <div class="card border-warning text-center d-flex flex-column justify-content-center card-clickable" data-categoria="sin_contestar">
+                <div class="card-body">
+                    <h5 class="card-title">Sin contestar Formulario</h5>
+                    <p class="card-text">
+                        <span class="badge-totales">{{ total_sin_contestar_formulario }} de {{ clientes_que_recibieron_formulario }}</span>
+                    </p>
+                    <span class="porcentaje">{{ porcentaje_sin_contestar }}%</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sección: Desglose de razones -->
+    <h4 class="section-label">Clientes que no han contestado el formulario</h4>
+    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-4 g-3 justify-content-center mt-3">
+
+        <!-- Por no contestar -->
+        <div class="col">
+            <form method="post" action="{% url 'exportar_seguimiento_categoria' %}" class="form-exportar">
+                {% csrf_token %}
+                <input type="hidden" name="categoria" value="no_contesto">
+            </form>
+            <div class="card border-danger text-center d-flex flex-column justify-content-center card-clickable" data-categoria="no_contesto">
+                <div class="card-body">
+                    <h5 class="card-title">Formulario enviado por no contestar llamada</h5>
+                    <p class="card-text">
+                        <span class="badge-totales">{{ total_formularios_por_no_contestar }} de {{ total_sin_contestar_formulario }}</span>
+                    </p>
+                    <span class="porcentaje">{{ porcentaje_no_contesto }}%</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Teléfonos inválidos -->
+        <div class="col">
+            <form method="post" action="{% url 'exportar_seguimiento_categoria' %}" class="form-exportar">
+                {% csrf_token %}
+                <input type="hidden" name="categoria" value="fuera_linea">
+            </form>
+            <div class="card border-secondary text-center d-flex flex-column justify-content-center card-clickable" data-categoria="fuera_linea">
+                <div class="card-body">
+                    <h5 class="card-title">Formulario enviado por teléfonos inválidos</h5>
+                    <p class="card-text">
+                        <span class="badge-totales">{{ total_formularios_fuera_linea }} de {{ total_sin_contestar_formulario }}</span>
+                    </p>
+                    <span class="porcentaje">{{ porcentaje_fuera_linea }}%</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Solicitado por correo -->
+        <div class="col">
+            <form method="post" action="{% url 'exportar_seguimiento_categoria' %}" class="form-exportar">
+                {% csrf_token %}
+                <input type="hidden" name="categoria" value="por_correo">
+            </form>
+            <div class="card border-primary text-center d-flex flex-column justify-content-center card-clickable" data-categoria="por_correo">
+                <div class="card-body">
+                    <h5 class="card-title">Formulario solicitado por correo</h5>
+                    <p class="card-text">
+                        <span class="badge-totales">{{ total_formularios_por_correo }} de {{ total_sin_contestar_formulario }}</span>
+                    </p>
+                    <span class="porcentaje">{{ porcentaje_por_correo }}%</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sin categoría registrada -->
+        <div class="col">
+            <form method="post" action="{% url 'exportar_seguimiento_categoria' %}" class="form-exportar">
+                {% csrf_token %}
+                <input type="hidden" name="categoria" value="sin_categoria">
+            </form>
+            <div class="card border-dark text-center d-flex flex-column justify-content-center card-clickable" data-categoria="sin_categoria">
+                <div class="card-body">
+                    <h5 class="card-title">Formulario enviado sin notas de referencia</h5>
+                    <p class="card-text">
+                        <span class="badge-totales">{{ total_formularios_sin_categoria }} de {{ total_sin_contestar_formulario }}</span>
+                    </p>
+                    <span class="porcentaje">{{ porcentaje_sin_categoria }}%</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% endif %}
+</div>
+
+<style>
+    .container {
+        width: 100%;
+        max-width: 1100px;
+        margin: auto;
+        background: #ffffff;
+        padding: 20px;
+        border-radius: 10px;
+        box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+    }
+
+    h1, h2, h3, h4, h5, h6 {
+        color: #122a4a;
+        font-weight: bold;
+        margin-bottom: 20px;
+    }
+
+    .card {
+        border-radius: 16px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        transition: transform 0.2s ease, box-shadow 0.3s ease;
+    }
+
+    .card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+    }
+
+    .card-body {
+        padding: clamp(1rem, 2vw, 1.5rem);
+    }
+
+    .card-title {
+        font-size: clamp(0.95rem, 1.6vw, 1.15rem);
+        color: #184072;
+        font-weight: 600;
+        margin-bottom: 0.3rem;
+    }
+
+    .card-text {
+        font-size: clamp(1rem, 2vw, 1.25rem);
+        color: #e67e22;
+        font-weight: 700;
+        margin-bottom: 0.2rem;
+    }
+
+    .badge-totales {
+        display: inline-block;
+        background-color: #f0f0f0;
+        color: #e67e22;
+        font-weight: bold;
+        padding: 6px 12px;
+        border-radius: 25px;
+        font-size: clamp(0.95rem, 1.7vw, 1.15rem);
+        min-width: 100px;
+        white-space: nowrap;
+    }
+
+    .porcentaje {
+        display: block;
+        font-size: clamp(0.6rem, 1.1vw, 0.95rem);
+        color: #000000;
+        margin-top: 0.2rem;
+        font-weight: 600;
+    }
+
+    .section-label {
+        font-size: clamp(1.2rem, 2.2vw, 1.4rem);
+        font-weight: 700;
+        color: #184072;
+        border-left: 4px solid #e67e22;
+        padding-left: 10px;
+        margin-top: 2.5rem;
+        margin-bottom: 1rem;
+    }
+
+    /* Responsive Layout */
+    @media (min-width: 992px) {
+        .row-cols-4.g-3 > .col {
+            padding-left: 6px !important;
+            padding-right: 6px !important;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .row-cols-4 > .col {
+            flex: 0 0 50%;
+            max-width: 50%;
+        }
+    }
+
+    @media (max-width: 500px) {
+        .row-cols-4 > .col {
+            flex: 0 0 100%;
+            max-width: 100%;
+        }
+    }
+</style>
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        // Si más adelante agregás barra de progreso, esto lo activa
+        document.querySelectorAll(".js-progress-bar").forEach(function (bar) {
+            const total = parseInt(bar.dataset.total, 10) || 0;
+            const avance = parseInt(bar.dataset.avance, 10) || 0;
+            const porcentaje = total > 0 ? Math.round((avance / total) * 100) : 0;
+
+            const fill = bar.querySelector(".progress-fill");
+            const label = bar.querySelector(".progress-label");
+
+            fill.style.width = `${porcentaje}%`;
+            label.textContent = `${avance} de ${total} (${porcentaje}%)`;
+        });
+    });
+</script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    document.querySelectorAll(".card-clickable").forEach(card => {
+        card.style.cursor = "pointer";
+        card.addEventListener("click", function () {
+            const categoria = this.dataset.categoria;
+            const form = document.querySelector(`form.form-exportar input[value="${categoria}"]`).closest("form");
+
+            Swal.fire({
+                title: '¿Desea descargar el archivo Excel?',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonText: 'Sí, descargar',
+                cancelButtonText: 'Cancelar'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    form.submit();
+                }
+            });
+        });
+    });
+});
+</script>
+
+
+{% endblock %}

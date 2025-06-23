@@ -1,16 +1,26 @@
 {% extends 'layout/layout.html' %}
+{% load group_filters %}
 
 {% block title %}Clientes | CCIT{% endblock %}
 
 {% block content %}
 <div class="container">
-    <ul class="nav nav-tabs" id="clienteTabs" role="tablist">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+    <ul class="nav nav-tabs mb-0" id="clienteTabs" role="tablist">
         <li class="nav-item" role="presentation">
             <a class="nav-link {% if view_type == 'reportados' %}active{% endif %}" id="reportados-tab" href="{% url 'clientes_reportados' %}" role="tab" aria-controls="reportados" aria-selected="true">
                 Contactados <span class="badge rounded-pill bg-light text-dark ms-1" id="countreportados">{{ count_reportados }}</span>
             </a>
         </li>
     </ul>
+
+    {% if user|has_group:"super_admin" or user|has_group:"admin_group" %}
+        <a href="#" class="btn btn-success btn-sm" id="btnExportarExcel">
+            <i class="bi bi-file-earmark-excel"></i> Exportar Excel
+        </a>
+    {% endif %}
+</div>
+
     <div class="tab-content mt-4" id="clienteTabsContent">
         {% if view_type == 'reportados' %}
         <div class="tab-pane fade show active" id="reportados" role="tabpanel" aria-labelledby="reportados-tab">
@@ -612,6 +622,27 @@
 
 {% block extra_js %}
 <script>
+    document.getElementById("btnExportarExcel").addEventListener("click", function (e) {
+        e.preventDefault();
+
+        Swal.fire({
+            title: "Exportando...",
+            text: "Espere mientras se procesan los datos y verifique el archivo en sus descargas.",
+            icon: "info",
+            allowOutsideClick: false,
+            showConfirmButton: false,
+            didOpen: () => {
+                Swal.showLoading();
+                window.location.href = "{% url 'exportar_clientes_reportados_excel' %}";
+
+                // Cierre automático después de 6 segundos
+                setTimeout(() => {
+                    Swal.close();
+                }, 6000);
+            }
+        });
+    });
+
     function setupBusqueda(inputId, tablaId) {
         const input = document.getElementById(inputId);
         const tabla = document.getElementById(tablaId);

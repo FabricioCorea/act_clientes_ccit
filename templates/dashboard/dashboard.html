@@ -89,58 +89,68 @@
         <h4 class="section-label">Porcentaje de Avance</h4>
         <div class="row row-cols-1 row-cols-sm-2 row-cols-lg-5 g-3 justify-content-center">
             <div class="col">
-            <div class="card text-center">
-                <div class="card-body">
-                <h5 class="card-title">Contactados</h5>
-                {% if filtro_activo %}
-                    <p class="card-text"><span class="badge-totales">{{ clientes_estandar }}</span></p>
-                {% else %}
-                    <p class="card-text"><span class="badge-totales">{{ clientes_estandar }} de {{ clientes_totales }}</span></p>
-                    <span class="porcentaje">{% widthratio clientes_estandar clientes_totales 100 %}%</span>
-                {% endif %}
+            <a href="{% url 'clientes_reportados' %}" style="text-decoration: none; color: inherit;">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h5 class="card-title">Contactados</h5>
+                        {% if filtro_activo %}
+                            <p class="card-text"><span class="badge-totales">{{ clientes_estandar }}</span></p>
+                        {% else %}
+                            <p class="card-text"><span class="badge-totales">{{ clientes_estandar }} de {{ clientes_totales }}</span></p>
+                            <span class="porcentaje">{% widthratio clientes_estandar clientes_totales 100 %}%</span>
+                        {% endif %}
+                    </div>
                 </div>
-            </div>
+            </a>
             </div>
 
             {% if not filtro_activo %}
             <div class="col">
-            <div class="card text-center">
-                <div class="card-body">
-                <h5 class="card-title">Pendientes</h5>
-                <p class="card-text"><span class="badge-totales">{{ clientes_pendientes_estandar }} de {{ clientes_totales }}</span></p>
-                <span class="porcentaje">{% widthratio clientes_pendientes_estandar clientes_totales 100 %}%</span>
+            <a href="{% url 'clientes_pendientes_gestion' %}" style="text-decoration: none; color: inherit;">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h5 class="card-title">Pendientes</h5>
+                        <p class="card-text"><span class="badge-totales">{{ clientes_pendientes_estandar }} de {{ clientes_totales }}</span></p>
+                        <span class="porcentaje">{% widthratio clientes_pendientes_estandar clientes_totales 100 %}%</span>
+                    </div>
                 </div>
-            </div>
+            </a>
             </div>
 
             <div class="col">
-            <div class="card text-center">
-                <div class="card-body">
-                <h5 class="card-title">Seguimiento</h5>
-                <p class="card-text"><span class="badge-totales">{{ clientes_en_seguimiento_estandar }} de {{ clientes_totales }}</span></p>
-                <span class="porcentaje">{% widthratio clientes_en_seguimiento_estandar clientes_totales 100 %}%</span>
+            <a href="{% url 'clientes_seguimiento_gestion' %}" style="text-decoration: none; color: inherit;">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h5 class="card-title">Seguimiento</h5>
+                        <p class="card-text"><span class="badge-totales">{{ clientes_en_seguimiento_estandar }} de {{ clientes_totales }}</span></p>
+                        <span class="porcentaje">{% widthratio clientes_en_seguimiento_estandar clientes_totales 100 %}%</span>
+                    </div>
                 </div>
-            </div>
+            </a>
             </div>
 
             <div class="col">
-            <div class="card text-center">
-                <div class="card-body">
-                <h5 class="card-title">Cerrados</h5>
-                <p class="card-text"><span class="badge-totales">{{ clientes_completados_estandar }} de {{ clientes_totales }}</span></p>
-                <span class="porcentaje">{% widthratio clientes_completados_estandar clientes_totales 100 %}%</span>
+            <a href="{% url 'clientes_todos_gestion' %}" style="text-decoration: none; color: inherit;">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h5 class="card-title">Cerrados</h5>
+                        <p class="card-text"><span class="badge-totales">{{ clientes_completados_estandar }} de {{ clientes_totales }}</span></p>
+                        <span class="porcentaje">{% widthratio clientes_completados_estandar clientes_totales 100 %}%</span>
+                    </div>
                 </div>
-            </div>
+            </a>
             </div>
 
             <div class="col">
-            <div class="card text-center">
-                <div class="card-body">
-                <h5 class="card-title">Actualizados</h5>
-                <p class="card-text"><span class="badge-totales">{{ clientes_actualizados_estandar }} de {{ clientes_totales }}</span></p>
-                <span class="porcentaje">{% widthratio clientes_actualizados_estandar clientes_totales 100 %}%</span>
+            <a href="{% url 'clientes_actualizados_gestion' %}" style="text-decoration: none; color: inherit;">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h5 class="card-title">Actualizados</h5>
+                        <p class="card-text"><span class="badge-totales">{{ clientes_actualizados_estandar }} de {{ clientes_totales }}</span></p>
+                        <span class="porcentaje">{% widthratio clientes_actualizados_estandar clientes_totales 100 %}%</span>
+                    </div>
                 </div>
-            </div>
+            </a>
             </div>
             {% endif %}
         </div>
@@ -166,12 +176,14 @@
             </div>
             </div>
             <div class="col">
-            <div class="card border-primary text-center">
-                <div class="card-body">
-                <h5 class="card-title">Veces que se envió formulario</h5>
-                <p class="card-text"><span class="badge-totales">{{ interacciones_estandar_formulario }}</span></p>
+            <a href="{% url 'seguimiento_comparativa' %}" style="text-decoration: none; color: inherit;">
+                <div class="card border-primary text-center">
+                    <div class="card-body">
+                        <h5 class="card-title">Veces que se envió formulario</h5>
+                        <p class="card-text"><span class="badge-totales">{{ interacciones_estandar_formulario }}</span></p>
+                    </div>
                 </div>
-            </div>
+            </a>
             </div>
         </div>
         {% endif %}
@@ -204,25 +216,37 @@
         <!-- En seguimiento -->
         <h4 class="section-label mt-4">En estado en seguimiento</h4>
         <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 g-3">
-        {% if reportes_estandar_seguimiento %}
-            {% for estado, cantidad in reportes_estandar_seguimiento.items %}
-            <div class="col">
-            <div class="card border-warning text-center">
-                <div class="card-body">
-                <h6 class="card-title">{{ estado }}</h6>
-                <p class="card-text"><span class="badge-totales">{{ cantidad }}</span></p>
+            {% if reportes_estandar_seguimiento %}
+                {% for estado, cantidad in reportes_estandar_seguimiento.items %}
+                <div class="col">
+                    {% if estado|lower == "formulario enviado" %}
+                    <a href="{% url 'seguimiento_comparativa' %}" style="text-decoration: none; color: inherit;">
+                        <div class="card border-warning text-center">
+                            <div class="card-body">
+                                <h6 class="card-title">{{ estado }}</h6>
+                                <p class="card-text"><span class="badge-totales">{{ cantidad }}</span></p>
+                            </div>
+                        </div>
+                    </a>
+                    {% else %}
+                    <div class="card border-warning text-center">
+                        <div class="card-body">
+                            <h6 class="card-title">{{ estado }}</h6>
+                            <p class="card-text"><span class="badge-totales">{{ cantidad }}</span></p>
+                        </div>
+                    </div>
+                    {% endif %}
                 </div>
-            </div>
-            </div>
-            {% endfor %}
-        {% else %}
-            <div class="col">
-            <div class="alert alert-light w-100 text-center" role="alert">
-                No hay estados en seguimiento registrados.
-            </div>
-            </div>
-        {% endif %}
+                {% endfor %}
+            {% else %}
+                <div class="col">
+                    <div class="alert alert-light w-100 text-center" role="alert">
+                        No hay estados en seguimiento registrados.
+                    </div>
+                </div>
+            {% endif %}
         </div>
+
 
         <!-- Contactados por Usuario -->
         <h4 class="section-label">Contactados por Usuario</h4>
@@ -306,15 +330,6 @@
                 <div class="progress-label"></div>
                 </div>
             </div>
-            <div class="col-md-6">
-                <div class="mb-2 text-center card-title">Avance Actual</div>
-                <div class="progress-container js-progress-bar"
-                data-total="{{ clientes_totales_colector }}"
-                data-avance="{{ avance_total_colector }}">
-                <div class="progress-fill"></div>
-                <div class="progress-label"></div>
-                </div>
-            </div>
             </div>
             {% else %}
             <p class="text-muted text-center">No hay clientes disponibles para calcular avance.</p>
@@ -346,16 +361,6 @@
                 <h5 class="card-title">Pendientes</h5>
                 <p class="card-text"><span class="badge-totales">{{ clientes_pendientes_colector }} de {{ clientes_totales_colector }}</span></p>
                 <span class="porcentaje">{% widthratio clientes_pendientes_colector clientes_totales_colector 100 %}%</span>
-                </div>
-            </div>
-            </div>
-
-            <div class="col">
-            <div class="card text-center">
-                <div class="card-body">
-                <h5 class="card-title">Seguimiento</h5>
-                <p class="card-text"><span class="badge-totales">{{ clientes_en_seguimiento_colectores }} de {{ clientes_totales_colector }}</span></p>
-                <span class="porcentaje">{% widthratio clientes_en_seguimiento_colectores clientes_totales_colector 100 %}%</span>
                 </div>
             </div>
             </div>

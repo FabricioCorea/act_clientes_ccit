@@ -25,6 +25,9 @@ from django.core.paginator import Paginator
 from django.db import transaction
 from itertools import chain
 from django.db.models.functions import Coalesce, Greatest
+from functools import reduce
+from operator import or_
+
 
 
 
@@ -867,6 +870,131 @@ def clientes_reportados(request):
     })
 
 @login_required
+def exportar_clientes_reportados_excel(request):
+    if not request.user.groups.filter(name__in=["super_admin", "admin_group"]).exists():
+        messages.error(request, "Acceso no autorizado.")
+        return redirect("clientes_reportados")
+
+    zona_honduras = pytz.timezone("America/Tegucigalpa")
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Clientes Reportados"
+    ws.append(["#", "Cliente", "Nombre", "Contacto", "Estado", "Usuario", "Fecha"])
+
+    clientes = Cliente.objects.all().select_related("estado_actual", "asignado_usuario").order_by("numero_cliente")
+    fila = 1
+
+    for cliente in clientes:
+        registros_cliente = []
+
+        movimientos = [{"obj": m, "tipo": "con_movimiento"} for m in MovimientoEstado.objects.filter(cliente=cliente)]
+        historiales = [{"obj": h, "tipo": "sin_movimiento"} for h in HistorialEstadoSinMovimiento.objects.filter(cliente=cliente, genera_movimiento=False)]
+
+        todos = movimientos + historiales
+        todos_ordenados = sorted(todos, key=lambda x: x["obj"].fecha_hora, reverse=True)
+
+        buffer_repetidos = []
+        estado_actual = None
+
+        for idx, item in enumerate(todos_ordenados):
+            estado_nombre = item["obj"].estado.nombre.strip().lower()
+            tipo = item["tipo"]
+
+            if tipo == "sin_movimiento":
+                if not estado_actual or estado_nombre == estado_actual:
+                    buffer_repetidos.append(item)
+                    estado_actual = estado_nombre
+                else:
+                    # Se rompió la secuencia
+                    if len(buffer_repetidos) >= 3:
+                        # Mostrar intentos menos el más reciente
+                        for i, intento in enumerate(reversed(buffer_repetidos[1:]), start=1):
+                            registros_cliente.append({
+                                "cliente": cliente,
+                                "estado": f"{buffer_repetidos[0]['obj'].estado.nombre} (intento {i})",
+                                "usuario": intento["obj"].actualizado_por.get_full_name() if intento["obj"].actualizado_por else "Sin usuario",
+                                "fecha": timezone.localtime(intento["obj"].fecha_hora, zona_honduras),
+                            })
+                    else:
+                        for i, intento in enumerate(reversed(buffer_repetidos), start=1):
+                            registros_cliente.append({
+                                "cliente": cliente,
+                                "estado": f"{intento['obj'].estado.nombre} (intento {i})",
+                                "usuario": intento["obj"].actualizado_por.get_full_name() if intento["obj"].actualizado_por else "Sin usuario",
+                                "fecha": timezone.localtime(intento["obj"].fecha_hora, zona_honduras),
+                            })
+                    buffer_repetidos = [item]
+                    estado_actual = estado_nombre
+            else:
+                # Procesar buffer antes del estado con movimiento
+                if buffer_repetidos:
+                    if len(buffer_repetidos) >= 3:
+                        for i, intento in enumerate(reversed(buffer_repetidos[1:]), start=1):
+                            registros_cliente.append({
+                                "cliente": cliente,
+                                "estado": f"{buffer_repetidos[0]['obj'].estado.nombre} (intento {i})",
+                                "usuario": intento["obj"].actualizado_por.get_full_name() if intento["obj"].actualizado_por else "Sin usuario",
+                                "fecha": timezone.localtime(intento["obj"].fecha_hora, zona_honduras),
+                            })
+                    else:
+                        for i, intento in enumerate(reversed(buffer_repetidos), start=1):
+                            registros_cliente.append({
+                                "cliente": cliente,
+                                "estado": f"{intento['obj'].estado.nombre} (intento {i})",
+                                "usuario": intento["obj"].actualizado_por.get_full_name() if intento["obj"].actualizado_por else "Sin usuario",
+                                "fecha": timezone.localtime(intento["obj"].fecha_hora, zona_honduras),
+                            })
+                    buffer_repetidos = []
+                    estado_actual = None
+
+                registros_cliente.append({
+                    "cliente": cliente,
+                    "estado": item["obj"].estado.nombre,
+                    "usuario": item["obj"].actualizado_por.get_full_name() if item["obj"].actualizado_por else "Sin usuario",
+                    "fecha": timezone.localtime(item["obj"].fecha_hora, zona_honduras),
+                })
+
+        # Procesar buffer al final
+        if buffer_repetidos:
+            if len(buffer_repetidos) >= 3:
+                for i, intento in enumerate(reversed(buffer_repetidos[1:]), start=1):
+                    registros_cliente.append({
+                        "cliente": cliente,
+                        "estado": f"{buffer_repetidos[0]['obj'].estado.nombre} (intento {i})",
+                        "usuario": intento["obj"].actualizado_por.get_full_name() if intento["obj"].actualizado_por else "Sin usuario",
+                        "fecha": timezone.localtime(intento["obj"].fecha_hora, zona_honduras),
+                    })
+            else:
+                for i, intento in enumerate(reversed(buffer_repetidos), start=1):
+                    registros_cliente.append({
+                        "cliente": cliente,
+                        "estado": f"{intento['obj'].estado.nombre} (intento {i})",
+                        "usuario": intento["obj"].actualizado_por.get_full_name() if intento["obj"].actualizado_por else "Sin usuario",
+                        "fecha": timezone.localtime(intento["obj"].fecha_hora, zona_honduras),
+                    })
+
+        # Ordenar registros del cliente por fecha descendente (ya lo están, pero aseguramos)
+        registros_cliente = sorted(registros_cliente, key=lambda r: r["fecha"], reverse=True)
+
+        # Agregar al Excel
+        for reg in registros_cliente:
+            ws.append([
+                fila,
+                reg["cliente"].numero_cliente,
+                reg["cliente"].nombre_cliente,
+                reg["cliente"].contacto_cliente,
+                reg["estado"],
+                reg["usuario"],
+                reg["fecha"].strftime("%d/%m/%Y"),
+            ])
+            fila += 1
+
+    response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    response["Content-Disposition"] = 'attachment; filename="clientes_tracking.xlsx"'
+    wb.save(response)
+    return response
+@login_required
 def dashboard_reportes(request):
     if not request.user.groups.filter(name__in=['super_admin', 'admin_group']).exists():
         if request.user.groups.filter(name="colector_group").exists():
@@ -886,134 +1014,13 @@ def dashboard_reportes(request):
         "colector": Group.objects.get(name='colector_group'),
     }
     grupo_activo = grupo_obj[grupo]
-    usuarios_activos = User.objects.filter(groups=grupo_activo)
+    usuarios = User.objects.filter(groups=grupo_activo).exclude(username="colector")
 
-    # Estados clave
     estado_pendiente = EstadoReporte.objects.filter(nombre__iexact="pendiente").first()
+    estado_por_localizar = EstadoReporte.objects.filter(nombre__iexact="por localizar").first()
     estado_actualizado = EstadoReporte.objects.filter(nombre__iexact="actualizado").first()
     estado_formulario = EstadoReporte.objects.filter(nombre__iexact="formulario enviado").first()
     estados_seguimiento = list(EstadoReporte.objects.filter(genera_movimiento=False).exclude(nombre__iexact="pendiente"))
-
-    # Subqueries para última fecha
-    subquery_ultima_fecha_mov = MovimientoEstado.objects.filter(cliente=OuterRef('pk')).order_by('-fecha_hora').values('fecha_hora')[:1]
-    subquery_ultima_fecha_hist = HistorialEstadoSinMovimiento.objects.filter(cliente=OuterRef('pk')).order_by('-fecha_hora').values('fecha_hora')[:1]
-
-    clientes = Cliente.objects.annotate(
-        ultima_fecha_mov=Subquery(subquery_ultima_fecha_mov, output_field=DateTimeField()),
-        ultima_fecha_hist=Subquery(subquery_ultima_fecha_hist, output_field=DateTimeField()),
-        ultima_fecha=Greatest(
-            Coalesce(Subquery(subquery_ultima_fecha_mov, output_field=DateTimeField()), Value(datetime(1900, 1, 1))),
-            Coalesce(Subquery(subquery_ultima_fecha_hist, output_field=DateTimeField()), Value(datetime(1900, 1, 1)))
-        )
-    ).prefetch_related(
-        Prefetch(
-            'movimientos',
-            queryset=MovimientoEstado.objects.select_related('estado', 'actualizado_por', 'actualizado_por_admin')
-            .filter(actualizado_por__in=usuarios_activos)
-        ),
-        Prefetch(
-            'historial_sin_movimiento',
-            queryset=HistorialEstadoSinMovimiento.objects.select_related('estado', 'actualizado_por', 'actualizado_por_admin')
-            .filter(actualizado_por__in=usuarios_activos)
-        )
-    )
-
-    # Filtros por fecha
-    if fecha_inicio and fecha_fin:
-        fecha_inicio_dt = parse_date(fecha_inicio)
-        fecha_fin_dt = parse_date(fecha_fin)
-        clientes = clientes.filter(ultima_fecha__date__range=(fecha_inicio_dt, fecha_fin_dt))
-
-    if usuario_id:
-        clientes = clientes.filter(
-            Q(movimientos__actualizado_por__id=usuario_id) |
-            Q(historial_sin_movimiento__actualizado_por__id=usuario_id)
-        ).distinct()
-
-    usuarios = usuarios_activos.exclude(username="colector").filter(
-        Q(movimientoestado__isnull=False) | Q(historialestadosinmovimiento__isnull=False)
-    ).distinct()
-
-    # Inicializar métricas
-    clientes_contactados = clientes_actualizados = clientes_completados = clientes_en_seguimiento = 0
-    reportes_generales = defaultdict(int)
-    reportes_finalizados = defaultdict(int)
-    reportes_seguimiento = defaultdict(int)
-    reportes_por_usuario = defaultdict(int)
-    actualizados_por_usuario = defaultdict(int)
-    total_interacciones = interacciones_seguimiento = interacciones_formulario = interacciones_actualizados = interacciones_completados = 0
-
-    for cliente in clientes:
-        movimientos = list(cliente.movimientos.all())
-        historiales = list(cliente.historial_sin_movimiento.all())
-
-        if not movimientos and not historiales:
-            continue
-
-        registros_completos = sorted(
-            chain(movimientos, historiales),
-            key=lambda x: x.fecha_hora,
-            reverse=True
-        )
-        ultimo = registros_completos[0]
-
-        registros_validos = [r for r in registros_completos if r.actualizado_por_admin is None and r.actualizado_por and r.estado]
-        if not registros_validos:
-            continue
-
-        ultimo_valido = registros_validos[0]
-        clientes_contactados += 1
-
-        if grupo == "estandar":
-            interacciones_seguimiento += sum(r.estado in estados_seguimiento for r in registros_validos)
-            interacciones_formulario += sum(r.estado == estado_formulario for r in registros_validos)
-            interacciones_actualizados += sum(r.estado == estado_actualizado for r in registros_validos)
-            interacciones_completados += sum(
-                r.estado and r.estado.genera_movimiento and r.estado != estado_actualizado for r in registros_validos
-            )
-            total_interacciones += len(registros_validos)  # Conteo limpio de interacciones
-
-        if ultimo.estado:
-            reportes_generales[ultimo.estado.nombre] += 1
-
-            if grupo == "estandar":
-                if ultimo.estado == estado_actualizado:
-                    clientes_actualizados += 1
-                elif ultimo.estado.genera_movimiento:
-                    clientes_completados += 1
-                elif not ultimo.estado.genera_movimiento and ultimo.estado != estado_pendiente:
-                    clientes_en_seguimiento += 1
-
-                if ultimo.estado.genera_movimiento:
-                    reportes_finalizados[ultimo.estado.nombre] += 1
-                else:
-                    reportes_seguimiento[ultimo.estado.nombre] += 1
-
-        if ultimo_valido.actualizado_por:
-            nombre = ultimo_valido.actualizado_por.get_full_name()
-            reportes_por_usuario[nombre] += 1
-            if ultimo_valido.estado == estado_actualizado:
-                actualizados_por_usuario[nombre] += 1
-
-    # Cálculo de tarjetas base
-    if grupo == "estandar":
-        total_clientes = Cliente.objects.count()
-        clientes_asignados = Cliente.objects.filter(asignado_inicial__groups=grupo_activo).distinct().count()
-        clientes_pendientes = Cliente.objects.filter(
-            asignado_inicial__groups=grupo_activo,
-            estado_actual__nombre__iexact="pendiente"
-        ).distinct().count()
-    else:
-        total_clientes = Cliente.objects.filter(asignado_usuario__groups=grupo_activo).distinct().count()
-        clientes_asignados = Cliente.objects.filter(
-            asignado_usuario__groups=grupo_activo
-        ).exclude(asignado_usuario__username="colector").distinct().count()
-        clientes_pendientes = Cliente.objects.filter(
-            asignado_usuario__groups=grupo_activo,
-            estado_actual__nombre__iexact="pendiente"
-        ).distinct().count()
-
-    porcentaje_avance = round((clientes_actualizados / total_clientes) * 100, 2) if total_clientes else 0
 
     context = {
         "fecha_inicio": fecha_inicio,
@@ -1022,39 +1029,521 @@ def dashboard_reportes(request):
         "usuarios": usuarios,
         "grupo": grupo,
         "filtro_activo": bool(fecha_inicio or fecha_fin or usuario_id),
+    }
+
+    if grupo == "colector":
+        usuarios_colectores = User.objects.filter(groups=grupo_activo)
+
+        clientes_por_localizar_qs = Cliente.objects.filter(
+            estado_actual__nombre__iexact="por localizar"
+        )
+        clientes_por_localizar_ids = set(clientes_por_localizar_qs.values_list("id", flat=True))
+
+        clientes_contactados_ids = set()
+        for cliente_id in clientes_por_localizar_ids:
+            movs = MovimientoEstado.objects.filter(
+                cliente_id=cliente_id,
+                actualizado_por__in=usuarios_colectores,
+                actualizado_por_admin__isnull=True
+            ).order_by('fecha_hora')
+
+            hist = HistorialEstadoSinMovimiento.objects.filter(
+                cliente_id=cliente_id,
+                actualizado_por__in=usuarios_colectores,
+                actualizado_por_admin__isnull=True
+            ).order_by('fecha_hora')
+
+            registros = sorted(chain(movs, hist), key=lambda x: x.fecha_hora)
+
+            posterior = False
+            for r in registros:
+                if r.estado.nombre.lower() == "por localizar":
+                    posterior = True
+                elif posterior:
+                    clientes_contactados_ids.add(cliente_id)
+                    break
+
+        clientes_contactados_ids = list(clientes_contactados_ids)
+        clientes_base = Cliente.objects.filter(id__in=clientes_por_localizar_ids)
+
+        total_clientes = len(clientes_por_localizar_ids)
+        clientes_contactados = len(clientes_contactados_ids)
+        clientes_actualizados = Cliente.objects.filter(
+            id__in=clientes_contactados_ids,
+            estado_actual=estado_actualizado
+        ).count()
+        clientes_completados = Cliente.objects.filter(
+            id__in=clientes_contactados_ids,
+            estado_actual__genera_movimiento=True
+        ).exclude(estado_actual=estado_actualizado).count()
+        clientes_pendientes = total_clientes - clientes_contactados
+        porcentaje_avance = round((clientes_contactados / total_clientes) * 100, 2) if total_clientes else 0
+
+        reportes_por_usuario = defaultdict(int)
+        actualizados_por_usuario = defaultdict(int)
+        reportes_generales = defaultdict(int)
+
+        for cliente_id in clientes_contactados_ids:
+            registros = list(MovimientoEstado.objects.filter(
+                cliente_id=cliente_id,
+                actualizado_por__in=usuarios_colectores,
+                actualizado_por_admin__isnull=True
+            )) + list(HistorialEstadoSinMovimiento.objects.filter(
+                cliente_id=cliente_id,
+                actualizado_por__in=usuarios_colectores,
+                actualizado_por_admin__isnull=True
+            ))
+
+            registros = sorted(registros, key=lambda x: x.fecha_hora)
+            posterior = False
+            for r in registros:
+                if r.estado.nombre.lower() == "por localizar":
+                    posterior = True
+                elif posterior:
+                    if r.actualizado_por:
+                        nombre = r.actualizado_por.get_full_name()
+                        reportes_por_usuario[nombre] += 1
+                        if r.estado == estado_actualizado:
+                            actualizados_por_usuario[nombre] += 1
+                    reportes_generales[r.estado.nombre] += 1
+
+        context.update({
+            "clientes_totales_colector": total_clientes,
+            "clientes_colector": clientes_contactados,
+            "clientes_actualizados_colector": clientes_actualizados,
+            "clientes_completados_colector": clientes_completados,
+            "clientes_pendientes_colector": clientes_pendientes,
+            "porcentaje_avance_colector": porcentaje_avance,
+            "reportes_colector_por_estado": dict(reportes_generales),
+            "reportes_colector_por_usuario": dict(reportes_por_usuario),
+            "actualizados_colector_por_usuario": dict(actualizados_por_usuario),
+        })
+
+        return render(request, 'dashboard/dashboard.html', context)
+
+    # === Grupo ESTÁNDAR ===
+
+    clientes_base = Cliente.objects.filter(asignado_inicial__groups=grupo_activo)
+
+    subquery_mov = MovimientoEstado.objects.filter(cliente=OuterRef('pk')).order_by('-fecha_hora').values('fecha_hora')[:1]
+    subquery_hist = HistorialEstadoSinMovimiento.objects.filter(cliente=OuterRef('pk')).order_by('-fecha_hora').values('fecha_hora')[:1]
+
+    mov_queryset = MovimientoEstado.objects.filter(actualizado_por_admin__isnull=True)
+    hist_queryset = HistorialEstadoSinMovimiento.objects.filter(actualizado_por_admin__isnull=True)
+
+    if usuario_id:
+        mov_queryset = mov_queryset.filter(actualizado_por_id=usuario_id)
+        hist_queryset = hist_queryset.filter(actualizado_por_id=usuario_id)
+
+    clientes = clientes_base.annotate(
+        ultima_fecha=Greatest(
+            Coalesce(Subquery(subquery_mov, output_field=DateTimeField()), Value(datetime(1900, 1, 1))),
+            Coalesce(Subquery(subquery_hist, output_field=DateTimeField()), Value(datetime(1900, 1, 1)))
+        )
+    ).only('id', 'estado_actual', 'asignado_inicial', 'asignado_usuario').prefetch_related(
+        Prefetch('movimientos', queryset=mov_queryset.select_related('estado', 'actualizado_por'), to_attr='movimientos_validos'),
+        Prefetch('historial_sin_movimiento', queryset=hist_queryset.select_related('estado', 'actualizado_por'), to_attr='historial_validos')
+    )
+
+    if fecha_inicio and fecha_fin:
+        fecha_inicio_dt = parse_date(fecha_inicio)
+        fecha_fin_dt = parse_date(fecha_fin)
+        clientes = clientes.filter(ultima_fecha__date__range=(fecha_inicio_dt, fecha_fin_dt))
+
+    reportes_generales = defaultdict(int)
+    reportes_finalizados = defaultdict(int)
+    reportes_seguimiento = defaultdict(int)
+    reportes_por_usuario = defaultdict(int)
+    actualizados_por_usuario = defaultdict(int)
+
+    total_interacciones = interacciones_seguimiento = interacciones_formulario = interacciones_actualizados = interacciones_completados = 0
+    clientes_contactados = clientes_actualizados = clientes_completados = clientes_en_seguimiento = 0
+
+    for cliente in clientes:
+        registros = sorted(
+            chain(cliente.movimientos_validos, cliente.historial_validos),
+            key=lambda x: x.fecha_hora,
+            reverse=True
+        )
+        registros_validos = [r for r in registros if r.estado and r.actualizado_por]
+
+        if registros_validos:
+            ultimo_valido = registros_validos[0]
+            clientes_contactados += 1
+            total_interacciones += len(registros_validos)
+            interacciones_formulario += sum(r.estado == estado_formulario for r in registros_validos)
+            interacciones_actualizados += sum(r.estado == estado_actualizado for r in registros_validos)
+            interacciones_completados += sum(r.estado.genera_movimiento and r.estado != estado_actualizado for r in registros_validos)
+            interacciones_seguimiento += sum(r.estado in estados_seguimiento for r in registros_validos)
+
+            if ultimo_valido.actualizado_por:
+                nombre = ultimo_valido.actualizado_por.get_full_name()
+                reportes_por_usuario[nombre] += 1
+                if ultimo_valido.estado == estado_actualizado:
+                    actualizados_por_usuario[nombre] += 1
+
+        if cliente.estado_actual:
+            reportes_generales[cliente.estado_actual.nombre] += 1
+            if cliente.estado_actual == estado_actualizado:
+                clientes_actualizados += 1
+            elif cliente.estado_actual.genera_movimiento:
+                clientes_completados += 1
+            elif not cliente.estado_actual.genera_movimiento and cliente.estado_actual != estado_pendiente:
+                clientes_en_seguimiento += 1
+
+            if cliente.estado_actual.genera_movimiento:
+                reportes_finalizados[cliente.estado_actual.nombre] += 1
+            elif cliente.estado_actual.nombre.lower() != "pendiente":
+                reportes_seguimiento[cliente.estado_actual.nombre] += 1
+
+    total_clientes = Cliente.objects.count()
+    clientes_asignados = clientes_base.distinct().count()
+    clientes_pendientes = clientes_base.filter(estado_actual__nombre__iexact="pendiente").distinct().count()
+    porcentaje_avance = round((clientes_actualizados / total_clientes) * 100, 2) if total_clientes else 0
+
+    context.update({
         "clientes_totales": total_clientes,
-        "clientes_estandar": clientes_contactados if grupo == "estandar" else 0,
-        "clientes_colector": clientes_contactados if grupo == "colector" else 0,
-        "clientes_asignados_estandar": clientes_asignados if grupo == "estandar" else 0,
-        "clientes_asignados_colector": clientes_asignados if grupo == "colector" else 0,
-        "clientes_actualizados_estandar": clientes_actualizados if grupo == "estandar" else 0,
-        "clientes_actualizados_colector": clientes_actualizados if grupo == "colector" else 0,
-        "clientes_completados_estandar": clientes_completados if grupo == "estandar" else 0,
-        "clientes_completados_colector": clientes_completados if grupo == "colector" else 0,
-        "clientes_en_seguimiento_estandar": clientes_en_seguimiento if grupo == "estandar" else 0,
-        "clientes_en_seguimiento_colectores": clientes_en_seguimiento if grupo == "colector" else 0,
-        "clientes_pendientes_estandar": clientes_pendientes if grupo == "estandar" else 0,
-        "clientes_pendientes_colector": clientes_pendientes if grupo == "colector" else 0,
-        "avance_total_estandar": clientes_actualizados if grupo == "estandar" else 0,
-        "avance_total_colector": clientes_actualizados if grupo == "colector" else 0,
-        "porcentaje_avance_estandar": porcentaje_avance if grupo == "estandar" else 0,
-        "porcentaje_avance_colector": porcentaje_avance if grupo == "colector" else 0,
+        "clientes_estandar": clientes_contactados,
+        "clientes_asignados_estandar": clientes_asignados,
+        "clientes_actualizados_estandar": clientes_actualizados,
+        "clientes_completados_estandar": clientes_completados,
+        "clientes_en_seguimiento_estandar": clientes_en_seguimiento,
+        "clientes_pendientes_estandar": clientes_pendientes,
+        "avance_total_estandar": clientes_actualizados,
+        "porcentaje_avance_estandar": porcentaje_avance,
+
         "total_interacciones_estandar": total_interacciones,
         "interacciones_estandar_seguimiento": interacciones_seguimiento,
         "interacciones_estandar_formulario": interacciones_formulario,
         "interacciones_estandar_actualizados": interacciones_actualizados,
         "interacciones_estandar_completados": interacciones_completados,
-        "reportes_estandar_finalizados": dict(reportes_finalizados) if grupo == "estandar" else {},
-        "reportes_estandar_seguimiento": dict(reportes_seguimiento) if grupo == "estandar" else {},
-        "reportes_colector_por_estado": dict(reportes_generales) if grupo == "colector" else {},
-        "reportes_estandar_por_usuario": dict(reportes_por_usuario) if grupo == "estandar" else {},
-        "actualizados_estandar_por_usuario": dict(actualizados_por_usuario) if grupo == "estandar" else {},
-        "reportes_colector_por_usuario": dict(reportes_por_usuario) if grupo == "colector" else {},
-        "actualizados_colector_por_usuario": dict(actualizados_por_usuario) if grupo == "colector" else {},
-    }
+
+        "reportes_estandar_finalizados": dict(reportes_finalizados),
+        "reportes_estandar_seguimiento": dict(reportes_seguimiento),
+        "reportes_estandar_por_usuario": dict(reportes_por_usuario),
+        "actualizados_estandar_por_usuario": dict(actualizados_por_usuario),
+    })
 
     return render(request, 'dashboard/dashboard.html', context)
+@login_required
+def seguimiento_comparativa(request):
+    usuario = request.user
+    if not usuario.groups.filter(name__in=["super_admin", "admin_group"]).exists():
+        return redirect("login")
 
+    estado_actualizado = EstadoReporte.objects.filter(nombre__iexact="actualizado").first()
+    estado_formulario = EstadoReporte.objects.filter(nombre__iexact="formulario enviado").first()
+
+    if not estado_actualizado or not estado_formulario:
+        return render(request, "dashboard/seguimiento_comparativa.html", {})
+
+    # Clientes actualmente en formulario enviado
+    clientes_formulario_actual = Cliente.objects.filter(estado_actual=estado_formulario).distinct()
+    clientes_formulario_actual_ids = set(clientes_formulario_actual.values_list('id', flat=True))
+
+    # Total de veces que se registró el estado 'formulario enviado'
+    total_envios_formulario = MovimientoEstado.objects.filter(estado=estado_formulario).count() + \
+                              HistorialEstadoSinMovimiento.objects.filter(estado=estado_formulario).count()
+
+    # Clientes que han tenido el estado 'formulario enviado'
+    clientes_que_recibieron_formulario_qs = Cliente.objects.filter(
+        Q(movimientos__estado=estado_formulario) | Q(historial_sin_movimiento__estado=estado_formulario)
+    ).distinct()
+    total_clientes_recibieron_formulario = clientes_que_recibieron_formulario_qs.count()
+
+    # Clientes actualizados luego del formulario
+    total_actualizados_con_formulario = clientes_que_recibieron_formulario_qs.filter(
+        estado_actual=estado_actualizado
+    ).count()
+
+    # Clientes en estado actual "formulario enviado"
+    total_sin_contestar_formulario = len(clientes_formulario_actual_ids)
+
+    # Clientes que recibieron formulario y cambiaron de estado
+    clientes_con_formulario_y_otro_estado = clientes_que_recibieron_formulario_qs.exclude(estado_actual=estado_formulario)
+    total_formulario_y_otro_estado = clientes_con_formulario_y_otro_estado.count()
+
+    # Frases de nota: no contestó
+    frases_respuesta = [
+        "responde", "responde.",
+        "respondio", "respondio.",
+        "respondió", "respondió.",
+        "responder", "responder.",
+        "contesta", "contesta.",
+        "contestaron", "contestaron.",
+        "no contesto", "no contesto.",
+        "no contestó", "no contestó."
+    ]
+    texto_busqueda_respuesta = reduce(or_, [Q(nota__icontains=frase) for frase in frases_respuesta])
+    historial_no_contesto = HistorialEstadoSinMovimiento.objects.filter(
+        estado=estado_formulario,
+        cliente__estado_actual=estado_formulario
+    ).filter(texto_busqueda_respuesta).values_list("cliente_id", flat=True).distinct()
+    ids_no_contesto = set(historial_no_contesto)
+
+    # Frases de nota: teléfono fuera de línea, dañado, etc.
+    frases_fuera_linea = [
+        "fuera de linea", "fuera de linea.",
+        "fuera de línea", "fuera de línea.",
+        "fuera de servicio", "fuera de servicio.",
+        "equivocado", "equivocado.",
+        "disponible", "disponible.",
+        "dañado", "dañado.",
+        "dañada", "dañada.",
+        "funciona", "funciona.",
+        "mal estado", "mal estado.",
+        "no es de la empresa", "no es de la empresa.",
+        "no colabora", "no colabora."
+    ]
+    texto_busqueda_fuera_linea = reduce(or_, [Q(nota__icontains=frase) for frase in frases_fuera_linea])
+    historial_fuera_linea = HistorialEstadoSinMovimiento.objects.filter(
+        estado=estado_formulario,
+        cliente__estado_actual=estado_formulario
+    ).filter(texto_busqueda_fuera_linea).values_list("cliente_id", flat=True).distinct()
+    ids_fuera_linea = set(historial_fuera_linea)
+
+    # Frases de nota: solicitud por correo
+    frases_envio_correo = [
+        "via ", "vía ",
+        "por correo", "por correo.",
+        "verbal", "verbal."
+    ]
+    texto_busqueda_envio_correo = reduce(or_, [Q(nota__icontains=frase) for frase in frases_envio_correo])
+    historial_envio_correo = HistorialEstadoSinMovimiento.objects.filter(
+        estado=estado_formulario,
+        cliente__estado_actual=estado_formulario
+    ).filter(texto_busqueda_envio_correo).values_list("cliente_id", flat=True).distinct()
+    ids_por_correo = set(historial_envio_correo)
+
+    # Clientes sin categoría registrada
+    ids_sin_categoria = clientes_formulario_actual_ids - ids_no_contesto - ids_fuera_linea - ids_por_correo
+    total_formularios_por_no_contestar = len(ids_no_contesto)
+    total_formularios_fuera_linea = len(ids_fuera_linea)
+    total_formularios_por_correo = len(ids_por_correo)
+    total_formularios_sin_categoria = len(ids_sin_categoria)
+
+    # Total de clientes en la base de datos
+    total_clientes = Cliente.objects.count()
+
+    # Porcentajes generales
+    porcentaje_actualizados = round((total_actualizados_con_formulario / total_clientes_recibieron_formulario) * 100) if total_clientes_recibieron_formulario else 0
+    porcentaje_sin_contestar = round((total_sin_contestar_formulario / total_clientes_recibieron_formulario) * 100) if total_clientes_recibieron_formulario else 0
+    porcentaje_formulario_y_otro_estado = round((total_formulario_y_otro_estado / total_clientes_recibieron_formulario) * 100) if total_clientes_recibieron_formulario else 0
+
+    # Porcentajes por categoría (solo para clientes en formulario enviado)
+    porcentaje_no_contesto = round((total_formularios_por_no_contestar / total_sin_contestar_formulario) * 100) if total_sin_contestar_formulario else 0
+    porcentaje_fuera_linea = round((total_formularios_fuera_linea / total_sin_contestar_formulario) * 100) if total_sin_contestar_formulario else 0
+    porcentaje_por_correo = round((total_formularios_por_correo / total_sin_contestar_formulario) * 100) if total_sin_contestar_formulario else 0
+    porcentaje_sin_categoria = round((total_formularios_sin_categoria / total_sin_contestar_formulario) * 100) if total_sin_contestar_formulario else 0
+
+    # Porcentaje de clientes que recibieron formulario sobre el total
+    porcentaje_recibieron_formulario = round((total_clientes_recibieron_formulario / total_clientes) * 100) if total_clientes else 0
+
+    context = {
+        "total_actualizados_con_formulario": total_actualizados_con_formulario,
+        "total_sin_contestar_formulario": total_sin_contestar_formulario,
+        "total_envios_formulario": total_envios_formulario,
+        "clientes_que_recibieron_formulario": total_clientes_recibieron_formulario,
+        "porcentaje_actualizados": porcentaje_actualizados,
+        "porcentaje_sin_contestar": porcentaje_sin_contestar,
+        "total_formularios_por_no_contestar": total_formularios_por_no_contestar,
+        "total_formularios_fuera_linea": total_formularios_fuera_linea,
+        "total_formularios_por_correo": total_formularios_por_correo,
+        "total_formularios_sin_categoria": total_formularios_sin_categoria,
+        "porcentaje_no_contesto": porcentaje_no_contesto,
+        "porcentaje_fuera_linea": porcentaje_fuera_linea,
+        "porcentaje_por_correo": porcentaje_por_correo,
+        "porcentaje_sin_categoria": porcentaje_sin_categoria,
+        "total_formulario_y_otro_estado": total_formulario_y_otro_estado,
+        "porcentaje_formulario_y_otro_estado": porcentaje_formulario_y_otro_estado,
+        "total_clientes": total_clientes,
+        "porcentaje_recibieron_formulario": porcentaje_recibieron_formulario,
+    }
+
+    return render(request, "dashboard/seguimiento_comparativa.html", context)
+
+@csrf_exempt
+@login_required
+def exportar_seguimiento_categoria(request):
+    if request.method != "POST" or not request.user.groups.filter(name__in=["super_admin", "admin_group"]).exists():
+        return redirect("seguimiento_comparativa")
+
+    categoria = request.POST.get("categoria")
+    estado_formulario = EstadoReporte.objects.filter(nombre__iexact="formulario enviado").first()
+    estado_actualizado = EstadoReporte.objects.filter(nombre__iexact="actualizado").first()
+
+    if not estado_formulario:
+        return redirect("seguimiento_comparativa")
+
+    zona_honduras = pytz.timezone("America/Tegucigalpa")
+    clientes_ids = set()
+
+    frases_dict = {
+        "no_contesto": [
+            "responde", "responde.",
+            "respondio", "respondio.",
+            "respondió", "respondió.",
+            "responder", "responder.",
+            "contesta", "contesta.",
+            "contestaron", "contestaron.",
+            "no contesto", "no contesto.",
+            "no contestó", "no contestó."
+        ],
+        "fuera_linea": [
+            "fuera de linea", "fuera de linea.",
+            "fuera de línea", "fuera de línea.",
+            "fuera de servicio", "fuera de servicio.",
+            "equivocado", "equivocado.",
+            "disponible", "disponible.",
+            "dañado", "dañado.",
+            "dañada", "dañada.",
+            "funciona", "funciona.",
+            "mal estado", "mal estado.",
+            "no es de la empresa", "no es de la empresa.",
+            "no colabora", "no colabora."
+        ],
+        "por_correo": [
+            "via ", "vía ",
+            "por correo", "por correo.",
+            "verbal", "verbal."
+        ]
+    }
+
+    if categoria == "recibieron":
+        clientes_ids = set(
+            Cliente.objects.filter(
+                Q(movimientos__estado=estado_formulario) |
+                Q(historial_sin_movimiento__estado=estado_formulario)
+            ).distinct().values_list("id", flat=True)
+        )
+
+    elif categoria == "otro_estado":
+        clientes_ids = set(
+            Cliente.objects.filter(
+                Q(movimientos__estado=estado_formulario) |
+                Q(historial_sin_movimiento__estado=estado_formulario)
+            ).exclude(estado_actual=estado_formulario).distinct().values_list("id", flat=True)
+        )
+
+    elif categoria == "actualizados":
+        if estado_actualizado:
+            clientes_ids = set(
+                Cliente.objects.filter(
+                    Q(movimientos__estado=estado_formulario) |
+                    Q(historial_sin_movimiento__estado=estado_formulario),
+                    estado_actual=estado_actualizado
+                ).distinct().values_list("id", flat=True)
+            )
+
+    elif categoria == "sin_contestar":
+        clientes_ids = set(
+            Cliente.objects.filter(
+                estado_actual=estado_formulario
+            ).values_list("id", flat=True)
+        )
+
+    elif categoria in frases_dict:
+        frases = frases_dict.get(categoria, [])
+        query = reduce(Q.__or__, [Q(nota__icontains=f) for f in frases])
+        clientes_ids = set(
+            HistorialEstadoSinMovimiento.objects.filter(
+                estado=estado_formulario,
+                cliente__estado_actual=estado_formulario
+            ).filter(query).values_list("cliente_id", flat=True).distinct()
+        )
+
+    elif categoria == "sin_categoria":
+        todos = set(Cliente.objects.filter(estado_actual=estado_formulario).values_list("id", flat=True))
+
+        frases_no_contesto = frases_dict["no_contesto"]
+        frases_fuera_linea = frases_dict["fuera_linea"]
+        frases_por_correo = frases_dict["por_correo"]
+
+        q_no_contesto = reduce(Q.__or__, [Q(nota__icontains=f) for f in frases_no_contesto])
+        q_fuera_linea = reduce(Q.__or__, [Q(nota__icontains=f) for f in frases_fuera_linea])
+        q_por_correo = reduce(Q.__or__, [Q(nota__icontains=f) for f in frases_por_correo])
+
+        ids_no_contesto = set(HistorialEstadoSinMovimiento.objects.filter(
+            estado=estado_formulario,
+            cliente__estado_actual=estado_formulario
+        ).filter(q_no_contesto).values_list("cliente_id", flat=True).distinct())
+
+        ids_fuera_linea = set(HistorialEstadoSinMovimiento.objects.filter(
+            estado=estado_formulario,
+            cliente__estado_actual=estado_formulario
+        ).filter(q_fuera_linea).values_list("cliente_id", flat=True).distinct())
+
+        ids_por_correo = set(HistorialEstadoSinMovimiento.objects.filter(
+            estado=estado_formulario,
+            cliente__estado_actual=estado_formulario
+        ).filter(q_por_correo).values_list("cliente_id", flat=True).distinct())
+
+        clientes_ids = todos - ids_no_contesto - ids_fuera_linea - ids_por_correo
+
+    else:
+        return redirect("seguimiento_comparativa")
+
+    clientes = Cliente.objects.filter(id__in=clientes_ids).select_related("estado_actual", "asignado_usuario")
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Clientes Exportados"
+    ws.append(["#", "Cliente", "Nombre", "Contacto", "Estado", "Usuario", "Fecha"])
+
+    for i, cliente in enumerate(clientes, start=1):
+        usuario = cliente.asignado_usuario.get_full_name() if cliente.asignado_usuario else "Sin asignar"
+        fecha = ""
+
+        mov = MovimientoEstado.objects.filter(
+            cliente=cliente,
+            estado=cliente.estado_actual
+        ).order_by("-fecha_hora").first()
+
+        hist = HistorialEstadoSinMovimiento.objects.filter(
+            cliente=cliente,
+            estado=cliente.estado_actual
+        ).order_by("-fecha_hora").first()
+
+        if mov and hist:
+            fecha_hora = max(mov.fecha_hora, hist.fecha_hora)
+        elif mov:
+            fecha_hora = mov.fecha_hora
+        elif hist:
+            fecha_hora = hist.fecha_hora
+        else:
+            fecha_hora = None
+
+        if fecha_hora:
+            fecha = timezone.localtime(fecha_hora, zona_honduras).strftime("%d/%m/%Y %H:%M")
+
+        ws.append([
+            i,
+            cliente.numero_cliente,
+            cliente.nombre_cliente,
+            cliente.contacto_cliente,
+            cliente.estado_actual.nombre if cliente.estado_actual else "",
+            usuario,
+            fecha,
+        ])
+
+    nombres_personalizados = {
+        "recibieron": "recibieron_correo",
+        "otro_estado": "dieron_respuesta_a_correo",
+        "actualizados": "actualizados_por_formulario",
+        "sin_contestar": "sin_contestar_formulario",
+        "sin_categoria": "sin_categoria_formulario_enviado",
+        "no_contesto": "no_contesto_llamada_formulario_enviado",
+        "fuera_linea": "telefonos_invalidos_formulario_enviado",
+        "por_correo": "solicitaron_envio_correo"
+    }
+
+    nombre_archivo = f"clientes_{nombres_personalizados.get(categoria, categoria)}.xlsx"
+    response = HttpResponse(
+        content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
+    response["Content-Disposition"] = f'attachment; filename="{nombre_archivo}"'
+    wb.save(response)
+    return response
 @login_required
 def clientes_sin_asignar_view(request):
     usuario = request.user
@@ -2238,6 +2727,7 @@ def exportar_clientes(request):
     response["Content-Disposition"] = f"attachment; filename={nombre_archivo}"
     wb.save(response)
     return response
+
 @login_required
 @require_POST
 @transaction.atomic

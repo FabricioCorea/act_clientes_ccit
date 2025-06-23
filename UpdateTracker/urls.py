@@ -18,11 +18,16 @@ urlpatterns = [
 
     
     path('clientes/contactados/', vistasClientes.clientes_reportados, name='clientes_reportados'),
+    path("clientes/exportar_excel/", vistasClientes.exportar_clientes_reportados_excel, name="exportar_clientes_reportados_excel"),
+
     path('clientes/reportar/', vistasClientes.reportar_cliente, name='reportar_cliente'),
     path('crear_estado_reporte/', vistasClientes.crear_estado_reporte, name='crear_estado_reporte'),
     path('actualizar-estado-cliente/', vistasClientes.actualizar_estado_cliente, name='actualizar_estado_cliente'),
 
     path('clientes/dashboard/', vistasClientes.dashboard_reportes, name='dashboard_reportes'),
+    path('clientes/seguimiento-comparativa/', vistasClientes.seguimiento_comparativa, name='seguimiento_comparativa'),
+    path('exportar-seguimiento-categoria/', vistasClientes.exportar_seguimiento_categoria, name='exportar_seguimiento_categoria'),
+
 
 
     path('gestion/sin-asignar/', vistasClientes.clientes_sin_asignar_view, name='gestion'),
