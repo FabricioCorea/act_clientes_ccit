@@ -1306,7 +1306,8 @@ def seguimiento_comparativa(request):
     frases_envio_correo = [
         "via ", "vía ",
         "por correo", "por correo.",
-        "verbal", "verbal."
+        "verbal", "verbal.",
+        "informacion", "información"
     ]
     texto_busqueda_envio_correo = reduce(or_, [Q(nota__icontains=frase) for frase in frases_envio_correo])
     historial_envio_correo = HistorialEstadoSinMovimiento.objects.filter(
@@ -1406,6 +1407,7 @@ def exportar_seguimiento_categoria(request):
             "via ", "vía ",
             "por correo", "por correo.",
             "verbal", "verbal."
+            "informacion", "información"
         ]
     }
 
@@ -1488,11 +1490,12 @@ def exportar_seguimiento_categoria(request):
     wb = Workbook()
     ws = wb.active
     ws.title = "Clientes Exportados"
-    ws.append(["#", "Cliente", "Nombre", "Contacto", "Estado", "Usuario", "Fecha"])
+    ws.append(["#", "Cliente", "Nombre", "Contacto", "Estado", "Usuario", "Fecha", "Nota"])
 
     for i, cliente in enumerate(clientes, start=1):
         usuario = cliente.asignado_usuario.get_full_name() if cliente.asignado_usuario else "Sin asignar"
         fecha = ""
+        nota_texto = ""
 
         mov = MovimientoEstado.objects.filter(
             cliente=cliente,
@@ -1504,17 +1507,22 @@ def exportar_seguimiento_categoria(request):
             estado=cliente.estado_actual
         ).order_by("-fecha_hora").first()
 
+        registro_mas_reciente = None
         if mov and hist:
-            fecha_hora = max(mov.fecha_hora, hist.fecha_hora)
+            registro_mas_reciente = mov if mov.fecha_hora > hist.fecha_hora else hist
         elif mov:
-            fecha_hora = mov.fecha_hora
+            registro_mas_reciente = mov
         elif hist:
-            fecha_hora = hist.fecha_hora
-        else:
-            fecha_hora = None
+            registro_mas_reciente = hist
 
-        if fecha_hora:
-            fecha = timezone.localtime(fecha_hora, zona_honduras).strftime("%d/%m/%Y %H:%M")
+        if registro_mas_reciente:
+            fecha = timezone.localtime(registro_mas_reciente.fecha_hora, zona_honduras).strftime("%d/%m/%Y %H:%M")
+
+            if isinstance(registro_mas_reciente, MovimientoEstado):
+                nota = NotaMovimiento.objects.filter(movimiento=registro_mas_reciente).order_by("fecha_creada").first()
+                nota_texto = nota.texto if nota else ""
+            elif isinstance(registro_mas_reciente, HistorialEstadoSinMovimiento):
+                nota_texto = registro_mas_reciente.nota or ""
 
         ws.append([
             i,
@@ -1524,6 +1532,7 @@ def exportar_seguimiento_categoria(request):
             cliente.estado_actual.nombre if cliente.estado_actual else "",
             usuario,
             fecha,
+            nota_texto,
         ])
 
     nombres_personalizados = {
