@@ -203,24 +203,20 @@
                                     </form>
 
                                     <!-- Botón Reportar -->
-                                    <button class="btn btn-accion btn-llamar"
-                                            title="Llamar cliente"
+                                    <button class="btn btn-accion btn-llamar btn-abrir-modal"
                                             data-bs-toggle="modal"
                                             data-bs-target="#modalReportarCliente"
-                                            onclick="abrirModalReportarCliente(
-                                                '{{ cliente.id }}',
-                                                '{{ cliente.numero_cliente }}',
-                                                '{{ cliente.nombre_cliente }}',
-                                                '{{ cliente.contacto_cliente }}',
-                                                '{{ cliente.telefono_cliente|default_if_none:"" }}',
-                                                '{{ cliente.telefono_dos|default_if_none:"" }}',
-                                                '{{ cliente.correo|default_if_none:"" }}',
-                                                '{{ cliente.direccion|default_if_none:"" }}',
-                                                '{{ cliente.contacto_cargo|default_if_none:"" }}'
-                                            )">
+                                            data-id="{{ cliente.id }}"
+                                            data-numero="{{ cliente.numero_cliente }}"
+                                            data-nombre="{{ cliente.nombre_cliente }}"
+                                            data-contacto="{{ cliente.contacto_cliente }}"
+                                            data-telefono="{{ cliente.telefono_cliente|default_if_none:'' }}"
+                                            data-telefono2="{{ cliente.telefono_dos|default_if_none:'' }}"
+                                            data-correo="{{ cliente.correo|default_if_none:'' }}"
+                                            data-direccion="{{ cliente.direccion|default_if_none:'' }}"
+                                            data-cargo="{{ cliente.contacto_cargo|default_if_none:'' }}">
                                         <i class="bi bi-telephone-fill"></i>
                                     </button>
-
                                     <!-- Botón Detalle -->
                                     <button class="btn btn-accion btn-detalle"
                                             title="Detalle"
@@ -301,14 +297,29 @@
                                     -
                                 {% endif %}
                             </td>
-                            <td>
-                                <div class="text-center">
-                                    <button class="btn btn-sm btn-reportar"
+                           <td>
+                                <div class="acciones-btns">
+                                    <button class="btn btn-accion btn-llamar btn-abrir-modal"
                                             data-bs-toggle="modal"
                                             data-bs-target="#modalReportarCliente"
-                                            onclick="abrirModalReportarCliente('{{ cliente.id }}', '{{ cliente.numero_cliente }}', '{{ cliente.nombre_cliente }}', '{{ cliente.contacto_cliente }}', '{{ cliente.telefono_cliente|default_if_none:"" }}', '{{ cliente.telefono_dos|default_if_none:"" }}', '{{ cliente.correo|default_if_none:"" }}')"
-                                            title="Llamar cliente">
+                                            data-id="{{ cliente.id }}"
+                                            data-numero="{{ cliente.numero_cliente }}"
+                                            data-nombre="{{ cliente.nombre_cliente }}"
+                                            data-contacto="{{ cliente.contacto_cliente }}"
+                                            data-telefono="{{ cliente.telefono_cliente|default_if_none:'' }}"
+                                            data-telefono2="{{ cliente.telefono_dos|default_if_none:'' }}"
+                                            data-correo="{{ cliente.correo|default_if_none:'' }}"
+                                            data-direccion="{{ cliente.direccion|default_if_none:'' }}"
+                                            data-cargo="{{ cliente.contacto_cargo|default_if_none:'' }}">
                                         <i class="bi bi-telephone-fill"></i>
+                                    </button>
+
+                                    <!-- Usa el mismo modal que en seguimiento -->
+                                    <button class="btn btn-accion btn-detalle"
+                                            title="Detalle"
+                                            data-bs-toggle="modal"
+                                            data-bs-target="#modalDetalle{{ cliente.id }}">
+                                        <i class="bi bi-eye-fill"></i>
                                     </button>
                                 </div>
                             </td>
@@ -586,7 +597,7 @@
     </div>
   </div>
 
-  {% for cliente in clientes_seguimiento %}
+{% for cliente in clientes_seguimiento %}
 <div class="modal fade" id="modalDetalle{{ cliente.id }}" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
@@ -643,6 +654,53 @@
         </div>
     </div>
 </div>
+{% endfor %}
+<!-- MODAL DE DETALLE PARA NO CONTESTÓ REUTILIZA EL MISMO BLOQUE DE SEGUIMIENTO -->
+{% for cliente in clientes_sin_contestar %}
+    <div class="modal fade" id="modalDetalle{{ cliente.id }}" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Tracking – Cliente: {{ cliente.numero_cliente }}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    {% if cliente.historial_sin_movimiento %}
+                        <p><strong>Veces contactado:</strong> {{ cliente.formulario_sin_contestar }}</p>
+                        <table class="table table-bordered">
+                            <thead>
+                                <tr>
+                                    <th>Estado</th>
+                                    <th>Fecha y hora</th>
+                                    <th>Actualizado por</th>
+                                    <th>Gestionado por</th>
+                                    <th>Nota</th>
+                                    <th>Tipo</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for h in cliente.historial_sin_movimiento.all|dictsortreversed:"fecha_hora" %}
+                                <tr>
+                                    <td>{{ h.estado.nombre }}</td>
+                                    <td>{{ h.fecha_hora|date:"d/m/Y H:i" }}</td>
+                                    <td>{{ h.actualizado_por.get_full_name|default:"-" }}</td>
+                                    <td>{{ h.actualizado_por_admin.get_full_name|default:"-" }}</td>
+                                    <td>{% if h.nota %}• {{ h.nota }}{% else %}-{% endif %}</td>
+                                    <td><span class="badge bg-warning text-dark">Sin movimiento</span></td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    {% else %}
+                        <p>No hay registros de historial para este cliente.</p>
+                    {% endif %}
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                </div>
+            </div>
+        </div>
+    </div>
 {% endfor %}
 
   
