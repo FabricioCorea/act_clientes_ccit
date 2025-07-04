@@ -116,7 +116,7 @@
           </li>
       
           <li class="list-link {% if active_page == 'dashboard_reportes' %}active{% endif %}">
-            <a href="{% url 'dashboard_reportes' %}" class="sidebar-link">
+            <a href="{% url 'dashboard_reportes' %}" class="sidebar-link" onclick="mostrarLoader()">
               <i class="fas fa-chart-bar sidebar-icon"></i>
               <span class="sidebar-text">Estadísticas</span>
             </a>
@@ -346,4 +346,62 @@
         
     </script>    
 </body>
+<!-- Loader global -->
+<div id="loader-overlay" style="display: none;">
+  <div class="loader-spinner"></div>
+</div>
+<style>
+  #loader-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: white;
+    z-index: 99999;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .loader-spinner {
+    border: 8px solid #f3f3f3;
+    border-top: 8px solid #e67e22;
+    border-radius: 50%;
+    width: 60px;
+    height: 60px;
+    animation: spin 1s linear infinite;
+  }
+
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+</style>
+<script>
+  function mostrarLoader() {
+    const loader = document.getElementById("loader-overlay");
+    if (loader) loader.style.display = "flex";
+  }
+
+  // Ocultar loader cuando el nuevo documento (dashboard) cargue
+  window.addEventListener("load", function () {
+    const loader = document.getElementById("loader-overlay");
+    if (loader) loader.style.display = "none";
+  });
+
+  // Mostrar loader al hacer clic en enlaces internos
+  document.addEventListener("DOMContentLoaded", function () {
+    const enlaces = document.querySelectorAll('a.sidebar-link[href]');
+    enlaces.forEach(link => {
+      const href = link.getAttribute('href');
+      if (href && !href.startsWith("#") && !href.startsWith("javascript")) {
+        link.addEventListener("click", function () {
+          mostrarLoader();
+        });
+      }
+    });
+  });
+</script>
 </html>

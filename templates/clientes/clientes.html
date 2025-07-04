@@ -194,10 +194,10 @@
                             <td class="text-center">
                                 <div class="acciones-btns">
                                     <!-- Botón Actualizar -->
-                                    <form method="POST" action="{% url 'actualizar_estado_cliente' %}">
+                                    <form method="POST" action="{% url 'actualizar_estado_cliente' %}" class="form-actualizar-cliente">
                                         {% csrf_token %}
                                         <input type="hidden" name="cliente_id" value="{{ cliente.id }}">
-                                        <button type="submit" class="btn btn-accion btn-actualizar" title="Actualizar cliente">
+                                        <button type="button" class="btn btn-accion btn-actualizar" title="Actualizar cliente">
                                             <i class="bi bi-check-circle-fill"></i>
                                         </button>
                                     </form>
@@ -1471,6 +1471,27 @@
             btn.addEventListener("click", function () {
                 const id = clienteIdInput.value;
                 if (id) delete datosTemporales[id];
+            });
+        });
+
+        document.querySelectorAll('.btn-actualizar').forEach(function(button) {
+            button.addEventListener('click', function() {
+                const form = this.closest('form');
+
+                Swal.fire({
+                    title: '¿Actualizar cliente?',
+                    text: 'Esta acción cambiará el estado a "Actualizado".',
+                    icon: 'question',
+                    showCancelButton: true,
+                    confirmButtonText: 'Sí, actualizar',
+                    cancelButtonText: 'Cancelar',
+                    reverseButtons: true,
+                    focusCancel: true
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        form.submit();
+                    }
+                });
             });
         });
     
