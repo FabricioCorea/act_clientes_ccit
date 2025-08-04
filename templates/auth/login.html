@@ -2,140 +2,154 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <!-- Favicons -->
-    <link rel="apple-touch-icon" href="{% static 'img/favicon/apple-touch-icon.png' %}">
-    <link rel="icon" type="image/png" sizes="32x32" href="{% static 'img/favicon/favicon-32x32.png' %}">
-    <link rel="icon" type="image/png" sizes="16x16" href="{% static 'img/favicon/favicon-16x16.png' %}">
-    <link rel="manifest" href="{% static 'img/favicon/site.webmanifest' %}"> <!-- Opcional si tienes un web manifest -->
-    <link rel="icon" type="image/png" sizes="192x192" href="{% static 'img/favicon/android-chrome-192x192.png' %}">
-    <link rel="icon" type="image/png" sizes="512x512" href="{% static 'img/favicon/android-chrome-512x512.png' %}">
-    <link rel="shortcut icon" href="{% static 'img/favicon/favicon.ico' %}">
-    <title>Login</title>
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: Arial, sans-serif;
-        }
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Login</title>
 
-        body {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            background: linear-gradient(135deg, #18314f, #283e51);
-        }
+  <!-- Favicons -->
+  <link rel="apple-touch-icon" href="{% static 'img/favicon/apple-touch-icon.png' %}">
+  <link rel="icon" type="image/png" sizes="32x32" href="{% static 'img/favicon/favicon-32x32.png' %}">
+  <link rel="icon" type="image/png" sizes="16x16" href="{% static 'img/favicon/favicon-16x16.png' %}">
+  <link rel="manifest" href="{% static 'img/favicon/site.webmanifest' %}">
+  <link rel="icon" type="image/png" sizes="192x192" href="{% static 'img/favicon/android-chrome-192x192.png' %}">
+  <link rel="icon" type="image/png" sizes="512x512" href="{% static 'img/favicon/android-chrome-512x512.png' %}">
+  <link rel="shortcut icon" href="{% static 'img/favicon/favicon.ico' %}">
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
-        .login-container {
-            background: white;
-            padding: 2rem;
-            border-radius: 10px;
-            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.2);
-            text-align: center;
-            width: 100%;
-            max-width: 400px;
-        }
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: Arial, sans-serif;
+    }
 
-        h2 {
-            margin-bottom: 1rem;
-            color: #333;
-        }
+    body {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      background: linear-gradient(135deg, #18314f, #283e51);
+    }
 
-        .input-group {
-            margin-bottom: 1rem;
-            text-align: left;
-        }
+    .login-container {
+      background: white;
+      padding: 2rem;
+      border-radius: 10px;
+      box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.2);
+      text-align: center;
+      width: 100%;
+      max-width: 400px;
+    }
 
-        label {
-            font-size: 14px;
-            font-weight: bold;
-        }
+    h2 {
+      margin-bottom: 1.5rem;
+      color: #18314f;
+    }
 
-        input {
-            width: 100%;
-            padding: 10px;
-            margin-top: 5px;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-        }
-        /* Imagen del usuario */
-        .login-img {
-            width: 100px;
-            height: 100px;
-            border-radius: 50%;
-            object-fit: cover;
-            margin-bottom: 15px;
-            background-color: transparent; /* fondo transparente */
-          }
-          
+    .login-img {
+      width: 100px;
+      height: 100px;
+      border-radius: 50%;
+      object-fit: cover;
+      margin-bottom: 15px;
+      background-color: transparent;
+    }
 
-        .btn-login {
-            width: 100%;
-            padding: 10px;
-            background: #18314f;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 16px;
-        }
+    .btn-login {
+      width: 100%;
+      padding: 10px;
+      background: #18314f;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 16px;
+    }
 
-        .btn-login:hover {
-            background: #3a5f7d;
-        }
+    .btn-login:hover {
+      background: #3a5f7d;
+    }
 
-        @media (max-width: 480px) {
-            .login-container {
-                padding: 1.5rem;
-            }
-        }
-    </style>
+    .input-container {
+      position: relative;
+      margin-bottom: 20px;
+      text-align: left;
+    }
+
+    .input-container input {
+      width: 100%;
+      padding: 16px 12px 8px 12px;
+      font-size: 16px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      background-color: white;
+      transition: border-color 0.3s ease;
+    }
+
+    .input-container label {
+      position: absolute;
+      left: 12px;
+      top: 12px;
+      background-color: white;
+      padding: 0 4px;
+      color: #888;
+      font-size: 16px;
+      pointer-events: none;
+      transition: 0.2s ease-in-out;
+      z-index: 1;
+    }
+
+    .input-container input:focus + label,
+    .input-container input:not(:placeholder-shown) + label {
+      top: -7px;
+      left: 10px;
+      font-size: 13px;
+      color: #18314f;
+    }
+
+    .input-container input:focus {
+      border-color: #18314f;
+      outline: none;
+    }
+
+    @media (max-width: 480px) {
+      .login-container {
+        padding: 1.5rem;
+      }
+    }
+  </style>
 </head>
 <body>
-    <div class="login-container">
-        <img
-        src="{% static 'img/logo.png' %}"
-        alt="User Icon"
-        class="login-img"
-      />
-        <h2>Iniciar Sesión</h2>
+  <div class="login-container">
+    <img src="{% static 'img/logo.png' %}" alt="User Icon" class="login-img" />
+    <h2>Actualización de Clientes CCIT</h2>
 
-        {% if messages %}
-            <script>
-                {% for message in messages %}
-                    Swal.fire({
-                        icon: "{% if message.tags == 'error' %}error{% elif message.tags == 'success' %}success{% elif message.tags == 'warning' %}warning{% else %}info{% endif %}",
-                        title: "Mensaje",
-                        text: "{{ message }}",
-                        confirmButtonColor: "#4b79a1"
-                    });
-                {% endfor %}
-            </script>
-        {% endif %}
-
-        <form method="POST" action="{% url 'login' %}" id="loginForm">
-            {% csrf_token %}
-            <div class="input-group">
-                <label for="username">Usuario</label>
-                <input type="text" name="username" id="username" placeholder="Ingrese su usuario" autocomplete="off" required>
-            </div>
-            <div class="input-group">
-                <label for="password">Contraseña</label>
-                <input type="password" name="password" id="password" placeholder="••••••••" required>
-            </div>
-            <button type="submit" class="btn-login">Iniciar sesión</button>
-        </form>
-    </div>
-
+    {% if messages %}
     <script>
-        document.getElementById("loginForm").addEventListener("submit", function(event) {
-            let username = document.getElementById("username").value.trim();
-            let password = document.getElementById("password").value;
-        });
+      {% for message in messages %}
+      Swal.fire({
+        icon: "{% if message.tags == 'error' %}error{% elif message.tags == 'success' %}success{% elif message.tags == 'warning' %}warning{% else %}info{% endif %}",
+        title: "Mensaje",
+        text: "{{ message }}",
+        confirmButtonColor: "#4b79a1"
+      });
+      {% endfor %}
     </script>
+    {% endif %}
+
+    <form method="POST" action="{% url 'login' %}" id="loginForm">
+      {% csrf_token %}
+      <div class="input-container">
+        <input type="text" name="username" id="username" placeholder=" " autocomplete="off" required />
+        <label for="username">Usuario</label>
+      </div>
+      <div class="input-container">
+        <input type="password" name="password" id="password" placeholder=" " required />
+        <label for="password">Contraseña</label>
+      </div>
+      <button type="submit" class="btn-login">Iniciar sesión</button>
+    </form>
+  </div>
 </body>
 </html>

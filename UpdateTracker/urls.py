@@ -36,11 +36,14 @@ urlpatterns = [
     path('gestion/pendientes/', vistasClientes.clientes_pendientes_view, name='clientes_pendientes_gestion'),
     path('gestion/colectores/', vistasClientes.clientes_para_colectores_view, name='clientes_para_colectores_gestion'),
     path('gestion/todos/', vistasClientes.clientes_todos_view, name='clientes_todos_gestion'),
-    path('gestion/desasignacion-cantidad', vistasClientes.desasignar_por_cantidad, name='desasignar_por_cantidad'),
+    
 
 
     path('gestion/asignacion', vistasClientes.asignar_cliente, name='asignacion'),
-    path('gestion/asignacion-cantidad', vistasClientes.asignacion_por_cantidad, name='asignacion_por_cantidad'),
+    
+
+    path('gestion/asignar-por-estado', vistasClientes.asignar_clientes_por_estado, name='asignar_clientes_por_estado'),
+    path('gestion/desasignar-por-estado', vistasClientes.desasignar_clientes_por_estado, name='desasignar_clientes_por_estado'),
 
     path('reasignar_cliente_colector/', vistasClientes.reasignar_cliente_colector, name='reasignar_cliente_colector'),
 
@@ -70,5 +73,6 @@ urlpatterns = [
     path('usuarios/eliminar/<int:user_id>/', vistasUsuarios.delete_user, name='eliminar_usuario'),
 
 ]
+
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

@@ -686,69 +686,110 @@
     </div>
   </div>  
 
-<!-- Modal Asignar por Cantidad -->
-<div class="modal fade" id="modalAsignarPorCantidad" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <form method="POST" action="{% url 'asignacion_por_cantidad' %}">
-                {% csrf_token %}
-                <div class="modal-header">
-                    <h5 class="modal-title">Asignar clientes por cantidad</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <label class="form-label">Cantidad de clientes a asignar</label>
-                        <input type="number" name="cantidad" class="form-control" min="1" required>
-                    </div>
-                    <hr>
-                    <label class="form-label">Seleccione el usuario a quien asignar:</label>
-                    {% for usuario in usuarios_no_colectores %}
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" name="usuario_id" id="usuarioCantidad_{{ usuario.id }}" value="{{ usuario.id }}" required>
-                            <label class="form-check-label" for="usuarioCantidad_{{ usuario.id }}">
-                                {{ usuario.get_full_name }}
-                            </label>
-                        </div>
-                    {% empty %}
-                        <p class="text-danger">No hay usuarios disponibles para asignar.</p>
-                    {% endfor %}
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="submit" class="btn btn-confirm">Asignar</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
 
-<!-- Modal Desasignar Clientes -->
-<div class="modal fade" id="modalDesasignarPorCantidad" tabindex="-1" aria-labelledby="modalDesasignarLabel" aria-hidden="true">
-  <div class="modal-dialog modal-lg">
+
+<!-- MODAL ASIGNAR POR ESTADO -->
+<div class="modal fade" id="modalAsignarPorCantidad" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
     <div class="modal-content">
-      <form method="POST" action="{% url 'desasignar_por_cantidad' %}">
+      <form method="POST" action="{% url 'asignar_clientes_por_estado' %}">
         {% csrf_token %}
         <div class="modal-header">
-          <h5 class="modal-title" id="modalDesasignarLabel">Desasignar clientes</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+          <h5 class="modal-title">Asignar clientes por estado</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
         </div>
         <div class="modal-body">
-          <p>Selecciona un usuario para quitarle clientes:</p>
-          {% for user in usuarios_con_clientes %}
-            <div class="form-check mb-2">
-              <input class="form-check-input" type="radio" name="usuario_id" id="usuario_{{ user.id }}" value="{{ user.id }}" required>
-              <label class="form-check-label" for="usuario_{{ user.id }}">
-                {{ user.get_full_name }} ({{ user.clientes_pendientes_count }} pendientes asignados)
-              </label>
-            </div>
-          {% empty %}
-            <p class="text-danger">No hay usuarios con clientes pendientes asignados.</p>
-          {% endfor %}
-          <div class="mt-3">
-            <label for="cantidad" class="form-label">Cantidad a desasignar:</label>
-            <input type="number" class="form-control" name="cantidad" min="1" required>
+
+          <!-- Estado -->
+          <div class="mb-3">
+            <label for="estadoAsignar" class="form-label">Seleccionar estado:</label>
+            <select name="estado_id" id="estadoAsignar" class="form-select" required>
+              {% for estado in estado_info %}
+                {% if estado.total_disponibles > 0 %}
+                  <option value="{{ estado.id }}">{{ estado.nombre }} ({{ estado.total_disponibles }} disponibles)</option>
+                {% endif %}
+              {% endfor %}
+            </select>
           </div>
+
+          <!-- Cantidad -->
+          <div class="mb-3">
+            <label class="form-label">Cantidad de clientes a asignar:</label>
+            <input type="number" name="cantidad" class="form-control" min="1" required>
+          </div>
+
+          <!-- Usuarios -->
+          <div class="mb-3">
+            <label class="form-label">Asignar a:</label>
+            {% for user in usuarios_no_colectores %}
+              <div class="form-check">
+                <input class="form-check-input" type="radio" name="usuario_id" id="asignarUsuario{{ user.id }}" value="{{ user.id }}" required>
+                <label class="form-check-label" for="asignarUsuario{{ user.id }}">{{ user.get_full_name }}</label>
+              </div>
+            {% empty %}
+              <p class="text-danger">No hay usuarios disponibles.</p>
+            {% endfor %}
+          </div>
+
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-confirm">Asignar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+
+<!-- MODAL DESASIGNAR POR ESTADO -->
+<div class="modal fade" id="modalDesasignarPorCantidad" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form method="POST" action="{% url 'desasignar_clientes_por_estado' %}">
+        {% csrf_token %}
+        <div class="modal-header">
+          <h5 class="modal-title">Desasignar clientes por estado</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+
+          <!-- Estado -->
+          <div class="mb-3">
+            <label for="estadoDesasignar" class="form-label">Seleccionar estado:</label>
+            <select name="estado_id" id="estadoDesasignar" class="form-select" required>
+              {% for estado in estado_info %}
+                {% if estado.total > 0 %}
+                  <option value="{{ estado.id }}">{{ estado.nombre }} ({{ estado.total }} clientes)</option>
+                {% endif %}
+              {% endfor %}
+            </select>
+          </div>
+
+          <!-- Cantidad -->
+          <div class="mb-3">
+            <label class="form-label">Cantidad de clientes a desasignar:</label>
+            <input type="number" name="cantidad" class="form-control" min="1" required>
+          </div>
+
+          <!-- Usuarios -->
+          <div class="mb-3">
+            <label class="form-label">Usuario:</label>
+            <div id="usuariosPorEstado">
+              {% for estado in estado_info %}
+                <div class="estado-usuarios" data-estado="{{ estado.id }}" style="display: none;">
+                  {% for usuario in estado.usuarios %}
+                    <div class="form-check">
+                      <input class="form-check-input" type="radio" name="usuario_id" value="{{ usuario.id }}" id="desasignarUsuario{{ estado.id }}_{{ usuario.id }}" required>
+                      <label class="form-check-label" for="desasignarUsuario{{ estado.id }}_{{ usuario.id }}">{{ usuario.nombre }} ({{ usuario.cantidad }})</label>
+                    </div>
+                  {% empty %}
+                    <p class="text-muted">Ningún usuario tiene clientes en este estado.</p>
+                  {% endfor %}
+                </div>
+              {% endfor %}
+            </div>
+          </div>
+
         </div>
         <div class="modal-footer">
           <button type="submit" class="btn btn-danger">Desasignar</button>
@@ -757,6 +798,8 @@
     </div>
   </div>
 </div>
+
+
 
 <div class="modal fade" id="modalEditarCliente" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog">
@@ -831,7 +874,6 @@
         </div>
     </div>
 </div>
-
 <style>
     .tabs-container {
         gap: 10px;
@@ -1303,135 +1345,148 @@
     }
 
 </style>
+
 {% endblock %}
 
 {% block extra_js %}
 <script>
+    // ------------------ Abrir Modal de Asignar Cliente ------------------
     window.abrirModalAsignarCliente = function (id, nombre) {
         document.getElementById("asignarClienteId").value = id;
         document.getElementById("asignarClienteNombre").innerText = nombre;
     };
 
+    // ------------------ Abrir Modal de Asignar Colector ------------------
     window.abrirModalAsignarColector = function (id, numero, nombre) {
         document.getElementById("modalColectorClienteId").value = id;
         document.getElementById("modalColectorClienteNumero").innerText = numero;
         document.getElementById("modalColectorClienteNombre").innerText = nombre;
     };
-    
+
     document.addEventListener('DOMContentLoaded', function () {
+        // ------------------ Modal Editar Cliente ------------------
         const modal = document.getElementById('modalEditarCliente');
         let currentEstado = '';
-    
-        modal.addEventListener('show.bs.modal', function (event) {
-            const button = event.relatedTarget;
-            const clienteId = button.getAttribute('data-id');
-            const numeroCliente = button.getAttribute('data-numero');
-            const nombreCliente = button.getAttribute('data-nombre');
-            const contactoCliente = button.getAttribute('data-contacto');
-            const usuarioId = button.getAttribute('data-usuario');
-            currentEstado = button.getAttribute('data-estado'); // ← llega en minúsculas
-    
-            modal.querySelector('#modalClienteId').value = clienteId;
-            modal.querySelector('#modalNumeroCliente').textContent = numeroCliente;
-            modal.querySelector('#modalNombreCliente').textContent = nombreCliente;
-            modal.querySelector('#modalContactoCliente').textContent = contactoCliente;
-            modal.querySelector('#usuarioSelect').value = usuarioId;
-            modal.querySelector('#acreditarSelect').value = usuarioId;
-    
-            const radios = modal.querySelectorAll('.estado-radio');
-            radios.forEach(radio => {
-                radio.checked = (radio.value === currentEstado);
+
+        if (modal) {
+            modal.addEventListener('show.bs.modal', function (event) {
+                const button = event.relatedTarget;
+                const clienteId = button.getAttribute('data-id');
+                const numeroCliente = button.getAttribute('data-numero');
+                const nombreCliente = button.getAttribute('data-nombre');
+                const contactoCliente = button.getAttribute('data-contacto');
+                const usuarioId = button.getAttribute('data-usuario');
+                currentEstado = button.getAttribute('data-estado');
+
+                modal.querySelector('#modalClienteId').value = clienteId;
+                modal.querySelector('#modalNumeroCliente').textContent = numeroCliente;
+                modal.querySelector('#modalNombreCliente').textContent = nombreCliente;
+                modal.querySelector('#modalContactoCliente').textContent = contactoCliente;
+                modal.querySelector('#usuarioSelect').value = usuarioId;
+                modal.querySelector('#acreditarSelect').value = usuarioId;
+
+                const radios = modal.querySelectorAll('.estado-radio');
+                radios.forEach(radio => {
+                    radio.checked = (radio.value === currentEstado);
+                });
+
+                ajustarCampos(currentEstado, currentEstado);
             });
-    
-            ajustarCampos(currentEstado, currentEstado); // estado seleccionado igual al actual al abrir
-        });
-    
-        document.querySelectorAll('.estado-radio').forEach(radio => {
-            radio.addEventListener('change', function () {
-                ajustarCampos(this.value, currentEstado);
+
+            document.querySelectorAll('.estado-radio').forEach(radio => {
+                radio.addEventListener('change', function () {
+                    ajustarCampos(this.value, currentEstado);
+                });
             });
-        });
-    
-        function ajustarCampos(selectedEstado, currentEstado) {
-            const asignacion = document.getElementById('asignacionUsuario');
-            const acreditar = document.getElementById('acreditarMovimiento');
-            const motivo = document.querySelector('input[name="motivo"]').closest('.mb-3');
 
-            // Mostrar secciones según estado seleccionado
-            if (selectedEstado === 'pendiente') {
-                asignacion.classList.remove('d-none');
-                acreditar.classList.add('d-none');
-                motivo.classList.remove('d-none');
-            } else if (selectedEstado === 'Cerrado (por admin)' || selectedEstado === 'actualizado') {
-                asignacion.classList.add('d-none');
-                acreditar.classList.remove('d-none');
-                motivo.classList.remove('d-none');
-            }
+            function ajustarCampos(selectedEstado, currentEstado) {
+                const asignacion = document.getElementById('asignacionUsuario');
+                const acreditar = document.getElementById('acreditarMovimiento');
+                const motivo = document.querySelector('input[name="motivo"]').closest('.mb-3');
 
-            // Si no hay cambio y no es pendiente → ocultar motivo y acreditar
-            if (selectedEstado === currentEstado && currentEstado !== 'pendiente') {
-                motivo.classList.add('d-none');
-                acreditar.classList.add('d-none');
-            }
-        }
-    
-        const form = document.getElementById('formEditarCliente');
-        form.addEventListener('submit', function (e) {
-            const selectedEstado = form.querySelector('input[name="estado"]:checked').value;
-            if (selectedEstado === currentEstado && selectedEstado !== 'pendiente') {
-                e.preventDefault();
-                alert('El cliente ya tiene este estado. Selecciona uno diferente para actualizar.');
-            }
-        });
-    });
-    
-    
-    
+                if (selectedEstado === 'pendiente') {
+                    asignacion.classList.remove('d-none');
+                    acreditar.classList.add('d-none');
+                    motivo.classList.remove('d-none');
+                } else if (selectedEstado === 'Cerrado (por admin)' || selectedEstado === 'actualizado') {
+                    asignacion.classList.add('d-none');
+                    acreditar.classList.remove('d-none');
+                    motivo.classList.remove('d-none');
+                }
 
-    document.addEventListener("DOMContentLoaded", function () {
-        document.getElementById("searchInput").addEventListener("keyup", function () {
-            let searchValue = this.value.toLowerCase();
-            let rows = document.querySelectorAll("#clienteTable tbody tr");
-
-            rows.forEach(row => {
-                let userData = row.textContent.toLowerCase();
-                row.style.display = userData.includes(searchValue) ? "" : "none";
-            });
-        });
-    });
-    
-    function setupBusquedaFormulario(inputId) {
-        const input = document.getElementById(inputId);
-
-        if (!input) return;
-
-        // Enviar el formulario automáticamente al presionar Enter
-        input.addEventListener("keyup", function (event) {
-            if (event.key === "Enter") {
-                const form = input.closest("form");
-                if (form) {
-                    form.submit();
+                if (selectedEstado === currentEstado && currentEstado !== 'pendiente') {
+                    motivo.classList.add('d-none');
+                    acreditar.classList.add('d-none');
                 }
             }
-        });
-    }
 
-    // Activar búsqueda por view_type
-    {% if view_type == 'pendientes' %}
-        setupBusquedaFormulario("searchInputPendientes");
-    {% elif view_type == 'seguimiento' %}
-        setupBusquedaFormulario("searchInputSeguimiento");
-    {% elif view_type == 'nocontesto' or view_type == 'colectores' %}
-        setupBusquedaFormulario("searchInputNoContesto");
-    {% elif view_type == 'sin_actualizar' %}
-        setupBusquedaFormulario("searchInputCompletados");
-    {% elif view_type == 'actualizados' %}
-        setupBusquedaFormulario("searchInputActualizados");
-    {% elif view_type == 'sin_asignar' %}
-        setupBusquedaFormulario("searchInputSinAsignar");
-    {% elif view_type == 'todos' %}
-        setupBusquedaFormulario("searchInputTodos");
-    {% endif %}
+            const form = document.getElementById('formEditarCliente');
+            form.addEventListener('submit', function (e) {
+                const selectedEstado = form.querySelector('input[name="estado"]:checked').value;
+                if (selectedEstado === currentEstado && selectedEstado !== 'pendiente') {
+                    e.preventDefault();
+                    alert('El cliente ya tiene este estado. Selecciona uno diferente para actualizar.');
+                }
+            });
+        }
 
+        // ------------------ Mostrar usuarios por estado en modal DESASIGNAR ------------------
+        const selectEstadoDesasignar = document.getElementById("estadoDesasignar");
+        const bloquesUsuarios = document.querySelectorAll(".estado-usuarios");
+
+        function actualizarUsuariosPorEstado() {
+            const estadoId = selectEstadoDesasignar?.value;
+            bloquesUsuarios.forEach(div => {
+                div.style.display = (div.dataset.estado === estadoId) ? "block" : "none";
+            });
+        }
+
+        if (selectEstadoDesasignar) {
+            selectEstadoDesasignar.addEventListener("change", actualizarUsuariosPorEstado);
+            actualizarUsuariosPorEstado(); // Inicial
+        }
+
+        // ------------------ Búsqueda por ENTER en input por tab ------------------
+        function setupBusquedaFormulario(inputId) {
+            const input = document.getElementById(inputId);
+            if (!input) return;
+            input.addEventListener("keyup", function (event) {
+                if (event.key === "Enter") {
+                    const form = input.closest("form");
+                    if (form) form.submit();
+                }
+            });
+        }
+
+        {% if view_type == 'pendientes' %}
+            setupBusquedaFormulario("searchInputPendientes");
+        {% elif view_type == 'seguimiento' %}
+            setupBusquedaFormulario("searchInputSeguimiento");
+        {% elif view_type == 'nocontesto' or view_type == 'colectores' %}
+            setupBusquedaFormulario("searchInputNoContesto");
+        {% elif view_type == 'sin_actualizar' %}
+            setupBusquedaFormulario("searchInputCompletados");
+        {% elif view_type == 'actualizados' %}
+            setupBusquedaFormulario("searchInputActualizados");
+        {% elif view_type == 'sin_asignar' %}
+            setupBusquedaFormulario("searchInputSinAsignar");
+        {% elif view_type == 'todos' %}
+            setupBusquedaFormulario("searchInputTodos");
+        {% endif %}
+
+        // ------------------ Filtro en tabla de clientes ------------------
+        const searchInput = document.getElementById("searchInput");
+        if (searchInput) {
+            searchInput.addEventListener("keyup", function () {
+                const searchValue = this.value.toLowerCase();
+                const rows = document.querySelectorAll("#clienteTable tbody tr");
+                rows.forEach(row => {
+                    const userData = row.textContent.toLowerCase();
+                    row.style.display = userData.includes(searchValue) ? "" : "none";
+                });
+            });
+        }
+    });
 </script>
+
 {% endblock %}
