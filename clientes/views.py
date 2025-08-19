@@ -2603,7 +2603,7 @@ def exportar_clientes(request):
         if fecha_fin:
             queryset = queryset.filter(movimientos__fecha_hora__date__lte=fecha_fin)
 
-    elif filtro == "completados":
+    elif filtro == "cerrados":
         estados_con_movimiento = EstadoReporte.objects.filter(
             genera_movimiento=True
         ).exclude(nombre__iexact="actualizado")
@@ -2649,12 +2649,13 @@ def exportar_clientes(request):
             fecha_ultimo_movimiento=fecha_movimiento,
             fecha_ultimo_historial=fecha_historial
         )
-
     # Crear Excel
     wb = Workbook()
     ws = wb.active
     ws.title = "Clientes Exportados"
-    ws.append(["#", "Cliente", "Nombre", "Contacto", "Estado", "Usuario", "Fecha"])
+
+    # Añadir los nuevos campos al encabezado
+    ws.append(["#", "Cliente", "Nombre", "Contacto", "Estado", "Usuario", "Fecha", "Cargo", "Teléfono 1", "Teléfono 2", "Dirección", "Correo"])
 
     for i, cliente in enumerate(queryset, start=1):
         fecha = ""
@@ -2685,6 +2686,7 @@ def exportar_clientes(request):
                     fecha_mas_reciente = max(fechas)
                     fecha = timezone.localtime(fecha_mas_reciente, zona_honduras).strftime("%d/%m/%Y %H:%M")
 
+        # Añadir los nuevos campos al cliente exportado
         ws.append([
             i,
             cliente.numero_cliente,
@@ -2693,6 +2695,11 @@ def exportar_clientes(request):
             cliente.estado_actual.nombre if cliente.estado_actual else "",
             usuario,
             fecha,
+            cliente.contacto_cargo if cliente.contacto_cargo else "",
+            cliente.telefono_cliente if cliente.telefono_cliente else "",
+            cliente.telefono_dos if cliente.telefono_dos else "",
+            cliente.direccion if cliente.direccion else "",
+            cliente.correo if cliente.correo else ""
         ])
 
     # Nombre del archivo
@@ -2712,6 +2719,7 @@ def exportar_clientes(request):
     response["Content-Disposition"] = f"attachment; filename={nombre_archivo}"
     wb.save(response)
     return response
+
 
 @login_required
 @require_POST
